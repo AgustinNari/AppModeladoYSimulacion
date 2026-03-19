@@ -1,9 +1,9 @@
-# 🚀 Velocidad de Convergencia en Métodos Numéricos
+# Velocidad de Convergencia en Métodos Numéricos
 
 ## 1. Convergencia Lineal
 El error disminuye de manera proporcional en cada iteración. Es un proceso constante y predecible, pero puede ser lento.
 
-### 🔹 Método de Bisección
+### Método de Bisección
 **Pasos para resolver:**
 1. **Definir intervalo:** Elegir $a$ y $b$ tales que $f(a) \cdot f(b) < 0$ (Teorema de Bolzano).
 2. **Calcular punto medio:** $c = \frac{a + b}{2}$.
@@ -16,7 +16,7 @@ El error disminuye de manera proporcional en cada iteración. Es un proceso cons
 
 ---
 
-### 🔹 Punto Fijo ($x = g(x)$)
+### Punto Fijo ($x = g(x)$)
 **Pasos para resolver:**
 1. **Transformar:** Despejar $f(x) = 0$ para obtener $x = g(x)$.
 2. **Verificar convergencia:** Comprobar que $|g'(x)| < 1$ cerca de la raíz.
@@ -31,7 +31,7 @@ El error disminuye de manera proporcional en cada iteración. Es un proceso cons
 ## 2. Convergencia Cuadrática (o Superior)
 La precisión se duplica (aproximadamente) en cada iteración. Ideal para alta precisión con pocos pasos.
 
-### 🔸 Newton-Raphson
+### Newton-Raphson
 **Pasos para resolver:**
 1. **Preparar:** Obtener la derivada $f'(x)$.
 2. **Semilla:** Elegir $x_0$ (evitar puntos donde $f'(x) = 0$).
@@ -41,10 +41,10 @@ La precisión se duplica (aproximadamente) en cada iteración. Ideal para alta p
 
 ---
 
-### 🔸 Aceleración de Aitken (Proceso $\Delta^2$)
+### Aceleración de Aitken (Proceso $\Delta^2$)
 Este método se usa para "acelerar" una sucesión que ya está convergiendo linealmente (como la de Punto Fijo).
 
-### 💡 Procedimiento de Tabla (Aitken-Steffensen)
+### Procedimiento de Tabla (Aitken-Steffensen)
 Para resolver en papel o Excel siguiendo el método del profesor:
 
 1.  **Columna 1 ($x_n$):** Es tu punto de partida.
@@ -56,7 +56,7 @@ Para resolver en papel o Excel siguiendo el método del profesor:
 
 ---
 
-## 📊 Comparativa Rápida
+## Comparativa Rápida
 
 | Método | Tipo | ¿Usa Derivadas? | Robustez |
 | :--- | :--- | :--- | :--- |

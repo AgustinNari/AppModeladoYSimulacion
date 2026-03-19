@@ -39,7 +39,7 @@ Es el metodo mas eficiente si se conoce la derivada y el punto inicial es cercan
 2. **Semilla:** Elegir x0 (evitar puntos donde f'(x) = 0).
 3. **Iterar:** Aplicar la formula:
    $$x_{k+1} = x_k - \frac{f(x_k)}{f'(x_k)}$$
-4. **Criterio de parada:** Repetir hasta que |x_{k+1} - x_k| < Tolerancia.
+4. **Criterio de parada:** Repetir hasta que $$|x_{k+1} - x_k| < Tolerancia$$.
 
 ---
 

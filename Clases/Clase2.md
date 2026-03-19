@@ -1,68 +1,71 @@
-# Velocidad de Convergencia en Métodos Numéricos
+# Velocidad de Convergencia en Metodos Numericos
 
 ## 1. Convergencia Lineal
-El error disminuye de manera proporcional en cada iteración. Es un proceso constante y predecible, pero puede ser lento.
+El error disminuye de manera proporcional en cada iteracion. Es un proceso constante y predecible, pero puede ser lento.
 
-### Método de Bisección
+### Metodo de Biseccion
+Algoritmo logico basado en el Teorema de Bolzano. Es un metodo "cerrado" que siempre converge si la funcion es continua.
+
 **Pasos para resolver:**
-1. **Definir intervalo:** Elegir $a$ y $b$ tales que $f(a) \cdot f(b) < 0$ (Teorema de Bolzano).
-2. **Calcular punto medio:** $c = \frac{a + b}{2}$.
+1. **Definir intervalo:** Elegir a y b tales que f(a) * f(b) < 0.
+2. **Calcular punto medio:** c = (a + b) / 2.
 3. **Evaluar signo:**
-    * Si $f(a) \cdot f(c) < 0$: La raíz está en $[a, c]$. Hacer **$b = c$**.
-    * Si $f(b) \cdot f(c) < 0$: La raíz está en $[c, b]$. Hacer **$a = c$**.
-4. **Criterio de parada:** Repetir desde el paso 2 hasta que $|f(c)| < \text{Tolerancia}$ o $\frac{b-a}{2} < \text{Tolerancia}$.
-
-
+    * Si f(a) * f(c) < 0: La raiz esta en [a, c]. Hacer b = c.
+    * Si f(b) * f(c) < 0: La raiz esta en [c, b]. Hacer a = c.
+4. **Criterio de parada:** Repetir desde el paso 2 hasta que |f(c)| < Tolerancia o (b - a) / 2 < Tolerancia.
 
 ---
 
-### Punto Fijo ($x = g(x)$)
+### Punto Fijo (x = g(x))
+Transforma la ecuacion f(x) = 0 en la forma x = g(x).
+
 **Pasos para resolver:**
-1. **Transformar:** Despejar $f(x) = 0$ para obtener $x = g(x)$.
-2. **Verificar convergencia:** Comprobar que $|g'(x)| < 1$ cerca de la raíz.
-3. **Semilla:** Elegir un valor inicial $x_0$.
-4. **Iterar:** Calcular $x_{k+1} = g(x_k)$.
-5. **Criterio de parada:** Repetir hasta que $|x_{k+1} - x_k| < \text{Tolerancia}$.
-
-
+1. **Transformar:** Despejar f(x) = 0 para obtener x = g(x).
+2. **Verificar convergencia:** Comprobar que |g'(x)| < 1 cerca de la raiz.
+3. **Semilla:** Elegir un valor inicial x0.
+4. **Iterar:** Calcular x_{k+1} = g(x_k).
+5. **Criterio de parada:** Repetir hasta que |x_{k+1} - x_k| < Tolerancia.
 
 ---
 
-## 2. Convergencia Cuadrática (o Superior)
-La precisión se duplica (aproximadamente) en cada iteración. Ideal para alta precisión con pocos pasos.
+## 2. Convergencia Cuadratica (o Superior)
+La precision se duplica (aproximadamente) en cada iteracion. Ideal para alta precision con pocos pasos.
 
 ### Newton-Raphson
+Es el metodo mas eficiente si se conoce la derivada y el punto inicial es cercano a la raiz.
+
 **Pasos para resolver:**
-1. **Preparar:** Obtener la derivada $f'(x)$.
-2. **Semilla:** Elegir $x_0$ (evitar puntos donde $f'(x) = 0$).
-3. **Iterar:** Aplicar la fórmula:
+1. **Preparar:** Obtener la derivada f'(x).
+2. **Semilla:** Elegir x0 (evitar puntos donde f'(x) = 0).
+3. **Iterar:** Aplicar la formula:
    $$x_{k+1} = x_k - \frac{f(x_k)}{f'(x_k)}$$
-4. **Criterio de parada:** Repetir hasta que $|x_{k+1} - x_k| < \text{Tolerancia}$.
+4. **Criterio de parada:** Repetir hasta que |x_{k+1} - x_k| < Tolerancia.
 
 ---
 
-### Aceleración de Aitken (Proceso $\Delta^2$)
-Este método se usa para "acelerar" una sucesión que ya está convergiendo linealmente (como la de Punto Fijo).
+### Aceleracion de Aitken (Proceso Delta^2)
+Este metodo se usa para "acelerar" una sucesion que ya esta convergiendo linealmente (como la de Punto Fijo).
 
-### Procedimiento de Tabla (Aitken-Steffensen)
-Para resolver en papel o Excel siguiendo el método del profesor:
+**Procedimiento de Tabla (Aitken-Steffensen):**
+Para resolver en papel o Excel siguiendo el metodo del profesor:
 
-1.  **Columna 1 ($x_n$):** Es tu punto de partida.
-2.  **Columna 2 ($x_{n+1}$):** Aplicas punto fijo una vez: $g(x_n)$.
-3.  **Columna 3 ($x_{n+2}$):** Aplicas punto fijo al resultado anterior: $g(x_{n+1})$.
-4.  **Columna 4 ($\hat{x}$):** Aplicas la fórmula de Aitken usando las tres columnas anteriores.
+1. **Columna 1 (xn):** Es tu punto de partida (Semilla).
+2. **Columna 2 (xn+1):** Aplicas punto fijo una vez: g(xn).
+3. **Columna 3 (xn+2):** Aplicas punto fijo al resultado anterior: g(xn+1).
+4. **Columna 4 (x_hat):** Aplicas la formula de Aitken usando las tres columnas anteriores:
+   $$\hat{x} = x_n - \frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}$$
 
-**Importante:** El valor de la Columna 4 se convierte en el $x_n$ de la siguiente fila. Esto transforma un método lineal en uno de **convergencia cuadrática**.
+**Importante:** El valor de la Columna 4 (x_hat) se convierte en el xn de la siguiente fila. Esto transforma un metodo lineal en uno de convergencia cuadratica.
 
 ---
 
-## Comparativa Rápida
+## Comparativa Rapida
 
-| Método | Tipo | ¿Usa Derivadas? | Robustez |
+| Metodo | Tipo | Usa Derivadas? | Robustez |
 | :--- | :--- | :--- | :--- |
-| **Bisección** | Lineal | No | **Alta** (No falla) |
-| **Punto Fijo** | Lineal | No | **Media** (Depende de $g'(x)$) |
-| **Newton** | Cuadrática | Sí | **Baja** (Depende de $x_0$) |
+| **Biseccion** | Lineal | No | **Alta** (No falla) |
+| **Punto Fijo** | Lineal | No | **Media** (Depende de g'(x)) |
+| **Newton** | Cuadratica | Si | **Baja** (Depende de x0) |
 | **Aitken** | Acelerado | No | **Media** (Mejora al Punto Fijo) |
 
-> **Nota de estudio:** Si un método de Punto Fijo **diverge** (como el que probaste antes), Aitken no podrá salvarlo. Aitken solo acelera lo que ya tiende a la raíz.
+> **Nota de estudio:** Si un metodo de Punto Fijo diverge, Aitken no podra salvarlo. Aitken solo acelera lo que ya tiende a la raiz.

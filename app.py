@@ -4,13 +4,13 @@ import plotly.graph_objects as go
 import pandas as pd
 import re
 
-# Configuración de la página
+# Configuracion de la pagina
 st.set_page_config(page_title="Santiago Mussi | Numeric Solver", layout="wide")
 
-st.title("Analizador de Métodos Numéricos Pro")
+st.title("Analizador de Metodos Numericos Pro")
 st.markdown("---")
 
-# --- FUNCIONES DE EVALUACIÓN Y DERIVADA ---
+# --- FUNCIONES DE EVALUACION Y DERIVADA ---
 
 def evaluar_f(f_str, x_val):
     try:
@@ -27,7 +27,6 @@ def evaluar_f(f_str, x_val):
 
 def calcular_derivada_robusta(f_str, x_val, h=1e-5):
     f = lambda x: evaluar_f(f_str, x)
-    # Diferencia central de 4to orden (Precisión Python 3.13)
     num = -f(x_val + 2*h) + 8*f(x_val + h) - 8*f(x_val - h) + f(x_val - 2*h)
     den = 12 * h
     return num / den
@@ -36,30 +35,29 @@ def calcular_error_relativo(x_nuevo, x_anterior):
     if abs(x_nuevo) < 1e-18: return 100.0
     return (abs(x_nuevo - x_anterior) / abs(x_nuevo)) * 100
 
-# --- LÓGICA DE LOS MÉTODOS ---
+# --- LOGICA DE LOS METODOS CON DETECCION DE DIVERGENCIA ---
 
 def metodo_biseccion(f_str, a, b, tol, max_iter):
     history = []
     fa, fb = evaluar_f(f_str, a), evaluar_f(f_str, b)
     if fa * fb >= 0:
         st.error("Error: f(a) y f(b) deben tener signos opuestos.")
-        return None, False, 0, 100
+        return None, "error_signos", 0, 100
     
     x_ant = a
     for i in range(max_iter):
         c = (a + b) / 2
         fc = evaluar_f(f_str, c)
         error_p = calcular_error_relativo(c, x_ant)
-        
         history.append({"Iter": i+1, "a": a, "b": b, "x_n (c)": c, "f(c)": fc, "Error (%)": error_p})
         
         if abs(fc) < 1e-15 or error_p < tol:
-            return pd.DataFrame(history).set_index("Iter"), True, c, error_p
+            return pd.DataFrame(history).set_index("Iter"), "convergencia", c, error_p
         
         if fa * fc < 0: b = c
         else: a, fa = c, fc
         x_ant = c
-    return pd.DataFrame(history).set_index("Iter"), False, x_ant, error_p
+    return pd.DataFrame(history).set_index("Iter"), "limite", x_ant, error_p
 
 def metodo_newton_raphson(f_str, x0, tol, max_iter):
     history = []
@@ -70,23 +68,33 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
         if dfx is None or abs(dfx) < 1e-15: break
         x_next = x_n - fx / dfx
         error_p = calcular_error_relativo(x_next, x_n)
+        
+        # Deteccion de divergencia (error creciendo significativamente)
+        if i > 2 and error_p > history[-1]["Error (%)"] * 2:
+            return pd.DataFrame(history).set_index("Iter"), "divergencia", x_next, error_p
+
         history.append({"Iter": i+1, "x_n": x_n, "f(x_n)": fx, "f'(x_n)": dfx, "x_n+1": x_next, "Error (%)": error_p})
         if error_p < tol:
-            return pd.DataFrame(history).set_index("Iter"), True, x_next, error_p
+            return pd.DataFrame(history).set_index("Iter"), "convergencia", x_next, error_p
         x_n = x_next
-    return pd.DataFrame(history).set_index("Iter"), False, x_n, error_p
+    return pd.DataFrame(history).set_index("Iter"), "limite", x_n, error_p
 
 def metodo_punto_fijo(g_str, x0, tol, max_iter):
     history = []
     x_ant = x0
     for i in range(max_iter):
         x_nuevo = evaluar_f(g_str, x_ant)
+        if x_nuevo is None or np.isinf(x_nuevo): break
         error_p = calcular_error_relativo(x_nuevo, x_ant)
+        
+        if i > 2 and error_p > 1000: # Umbral de divergencia clara
+            return pd.DataFrame(history).set_index("Iter"), "divergencia", x_nuevo, error_p
+
         history.append({"Iter": i+1, "x_n": x_ant, "x_n+1": x_nuevo, "Error (%)": error_p})
         if error_p < tol:
-            return pd.DataFrame(history).set_index("Iter"), True, x_nuevo, error_p
+            return pd.DataFrame(history).set_index("Iter"), "convergencia", x_nuevo, error_p
         x_ant = x_nuevo
-    return pd.DataFrame(history).set_index("Iter"), False, x_ant, error_p
+    return pd.DataFrame(history).set_index("Iter"), "limite", x_ant, error_p
 
 def metodo_aitken(g_str, x0, tol, max_iter):
     history = []
@@ -98,30 +106,32 @@ def metodo_aitken(g_str, x0, tol, max_iter):
         if abs(den) < 1e-15: break
         x_hat = x_n - ((x1 - x_n)**2) / den
         error_p = calcular_error_relativo(x_hat, x_n)
+        
+        if i > 2 and error_p > 1000:
+            return pd.DataFrame(history).set_index("Iter"), "divergencia", x_hat, error_p
+
         history.append({"Iter": i+1, "x_n": x_n, "x_hat": x_hat, "Error (%)": error_p})
         if error_p < tol:
-            return pd.DataFrame(history).set_index("Iter"), True, x_hat, error_p
+            return pd.DataFrame(history).set_index("Iter"), "convergencia", x_hat, error_p
         x_n = x_hat
-    return pd.DataFrame(history).set_index("Iter"), False, x_n, error_p
+    return pd.DataFrame(history).set_index("Iter"), "limite", x_n, error_p
 
 # --- INTERFAZ ---
 
-st.sidebar.header("Configuración")
-metodo_sel = st.sidebar.selectbox("Selecciona Método", ["Bisección", "Newton-Raphson", "Punto Fijo", "Aceleración Aitken"])
+st.sidebar.header("Configuracion")
+metodo_sel = st.sidebar.selectbox("Selecciona Metodo", ["Bisección", "Newton-Raphson", "Punto Fijo", "Aceleración Aitken"])
 
 col1, col2 = st.columns([1, 2])
 
 with col1:
     st.subheader("Entrada")
-    
-    # Teclado Científico
     if 'input_val' not in st.session_state: st.session_state.input_val = "x**2 - 2"
     btns = st.columns(4)
     ops = ["sin(x)", "cos(x)", "exp(x)", "log(x)", "sqrt(x)", "x^2", "pi", "("]
     for i, op in enumerate(ops):
         if btns[i % 4].button(op): st.session_state.input_val += op.replace("x^2", "**2")
     
-    func_input = st.text_input("Función:", value=st.session_state.input_val)
+    func_input = st.text_input("Funcion:", value=st.session_state.input_val)
     st.session_state.input_val = func_input
 
     if metodo_sel == "Bisección":
@@ -132,33 +142,42 @@ with col1:
         
     tol_in = st.number_input("Tolerancia (%)", value=0.001, format="%.6f")
     iter_in = st.slider("Max Iteraciones", 5, 100, 20)
-    
     ejecutar = st.button("Calcular")
 
 with col2:
     if ejecutar:
         if metodo_sel == "Bisección":
-            df, conv, raiz, err_f = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in)
+            df, estado, raiz, err_f = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in)
         elif metodo_sel == "Newton-Raphson":
-            df, conv, raiz, err_f = metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
+            df, estado, raiz, err_f = metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
         elif metodo_sel == "Punto Fijo":
-            df, conv, raiz, err_f = metodo_punto_fijo(func_input, x0_in, tol_in, iter_in)
+            df, estado, raiz, err_f = metodo_punto_fijo(func_input, x0_in, tol_in, iter_in)
         else:
-            df, conv, raiz, err_f = metodo_aitken(func_input, x0_in, tol_in, iter_in)
+            df, estado, raiz, err_f = metodo_aitken(func_input, x0_in, tol_in, iter_in)
 
         if df is not None:
+            if estado == "convergencia":
+                st.success(f"Convergencia alcanzada. Raiz: {raiz:.8f}")
+            elif estado == "divergencia":
+                st.error("EL METODO ESTA DIVERGIENDO. Los valores se alejan de la raiz o el error crece sin control.")
+            elif estado == "limite":
+                st.warning("Se alcanzo el limite de iteraciones sin lograr la tolerancia deseada.")
+
             m1, m2 = st.columns(2)
-            m1.metric("Raíz Aproximada", f"{raiz:.8f}")
+            m1.metric("Raiz Aproximada", f"{raiz:.8f}")
             m2.metric("Error Final", f"{err_f:.2e}%")
 
-            # Gráfico
-            x_range = np.linspace(raiz - 2, raiz + 2, 200)
-            y_range = [evaluar_f(func_input, v) for v in x_range]
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=x_range, y=y_range, name="f(x)", line=dict(color='#00cfcc')))
-            fig.add_trace(go.Scatter(x=[raiz], y=[0], mode='markers', marker=dict(color='red', size=12, symbol='star'), name="Raíz"))
-            fig.add_hline(y=0, line_dash="dash", line_color="white")
-            fig.update_layout(template="plotly_dark", title=f"Gráfico: {metodo_sel}")
-            st.plotly_chart(fig, use_container_width=True)
+            # Grafico
+            try:
+                x_range = np.linspace(raiz - 2, raiz + 2, 200)
+                y_range = [evaluar_f(func_input, v) for v in x_range]
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=x_range, y=y_range, name="f(x)", line=dict(color='#00cfcc')))
+                fig.add_trace(go.Scatter(x=[raiz], y=[0], mode='markers', marker=dict(color='red', size=12, symbol='star'), name="Raiz"))
+                fig.add_hline(y=0, line_dash="dash", line_color="white")
+                fig.update_layout(template="plotly_dark", title=f"Grafico: {metodo_sel}")
+                st.plotly_chart(fig, use_container_width=True)
+            except:
+                st.info("No se pudo generar el grafico debido a valores fuera de rango (posible divergencia).")
 
             st.dataframe(df.style.format(precision=6), use_container_width=True)

@@ -32,11 +32,15 @@ def calcular_derivada_robusta(f_str, x_val, h=1e-5):
     den = 12 * h
     return num / den
 
+def calcular_error_absoluto(x_nuevo, x_anterior):
+    return abs(x_nuevo - x_anterior)
+
 def calcular_error_relativo(x_nuevo, x_anterior):
     if abs(x_nuevo) < 1e-18: return 100.0
     return (abs(x_nuevo - x_anterior) / abs(x_nuevo)) * 100
 
 # --- LOGICA DE LAGRANGE (SIMBOLICO Y NUMERICO) ---
+
 def calcular_lagrange_completo(x_points, y_points):
     x_sym = sp.symbols('x')
     n = len(x_points)
@@ -61,6 +65,13 @@ def calcular_lagrange_completo(x_points, y_points):
     
     return poly_total_limpio, listado_L
 
+def calcular_termino_error_lagrange(x_points, x_eval):
+    # Calcula el productorio (x - x0)*(x - x1)... que compone la cota de error
+    producto = 1.0
+    for xi in x_points:
+        producto *= (x_eval - xi)
+    return abs(producto)
+
 # --- LOGICA DE DIFERENCIAS CENTRALES ---
 
 def metodo_diferencias_centrales(x_points, y_points):
@@ -71,7 +82,16 @@ def metodo_diferencias_centrales(x_points, y_points):
     for i in range(1, len(x_points) - 1):
         d1 = (y_points[i+1] - y_points[i-1]) / (2 * h)
         d2 = (y_points[i+1] - 2*y_points[i] + y_points[i-1]) / (h**2)
-        derivadas.append({"Punto x": x_points[i], "f'(x) (Vel)": d1, "f''(x) (Ace)": d2})
+        
+        # Error local de truncamiento teorico de dif centrales es O(h^2)
+        error_truncamiento_estimado = h**2 
+        
+        derivadas.append({
+            "Punto x": x_points[i], 
+            "f'(x) (Vel)": d1, 
+            "f''(x) (Ace)": d2,
+            "Error Local O(h^2)": error_truncamiento_estimado
+        })
     return pd.DataFrame(derivadas)
 
 # --- LOGICA DE LOS METODOS ANTERIORES (RAICES) ---
@@ -85,14 +105,22 @@ def metodo_biseccion(f_str, a, b, tol, max_iter):
     for i in range(max_iter):
         c = (a + b) / 2
         fc = evaluar_f(f_str, c)
-        error_p = calcular_error_relativo(c, x_ant)
-        history.append({"Iter": i+1, "a": a, "b": b, "x_n (c)": c, "f(c)": fc, "Error (%)": error_p})
-        if abs(fc) < 1e-15 or error_p < tol:
-            return pd.DataFrame(history).set_index("Iter"), "convergencia", c, error_p
+        error_abs = calcular_error_absoluto(c, x_ant)
+        error_rel = calcular_error_relativo(c, x_ant)
+        
+        history.append({
+            "Iter": i+1, "a": a, "b": b, "x_n (c)": c, 
+            "Residual f(c)": fc, 
+            "Error Local (Abs)": error_abs, 
+            "Error Relativo (%)": error_rel
+        })
+        
+        if abs(fc) < 1e-15 or error_rel < tol:
+            return pd.DataFrame(history).set_index("Iter"), "convergencia", c, error_rel
         if fa * fc < 0: b = c
         else: a, fa = c, fc
         x_ant = c
-    return pd.DataFrame(history).set_index("Iter"), "limite", x_ant, error_p
+    return pd.DataFrame(history).set_index("Iter"), "limite", x_ant, error_rel
 
 def metodo_newton_raphson(f_str, x0, tol, max_iter):
     history = []
@@ -101,15 +129,24 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
         fx = evaluar_f(f_str, x_n)
         dfx = calcular_derivada_robusta(f_str, x_n)
         if dfx is None or abs(dfx) < 1e-15: break
+        
         x_next = x_n - fx / dfx
-        error_p = calcular_error_relativo(x_next, x_n)
-        if i > 2 and error_p > history[-1]["Error (%)"] * 2:
-            return pd.DataFrame(history).set_index("Iter"), "divergencia", x_next, error_p
-        history.append({"Iter": i+1, "x_n": x_n, "f(x_n)": fx, "f'(x_n)": dfx, "x_n+1": x_next, "Error (%)": error_p})
-        if error_p < tol:
-            return pd.DataFrame(history).set_index("Iter"), "convergencia", x_next, error_p
+        error_abs = calcular_error_absoluto(x_next, x_n)
+        error_rel = calcular_error_relativo(x_next, x_n)
+        
+        if i > 2 and error_rel > history[-1]["Error Relativo (%)"] * 2:
+            return pd.DataFrame(history).set_index("Iter"), "divergencia", x_next, error_rel
+            
+        history.append({
+            "Iter": i+1, "x_n": x_n, "f(x_n)": fx, "f'(x_n)": dfx, "x_n+1": x_next, 
+            "Error Local (Abs)": error_abs, 
+            "Error Relativo (%)": error_rel
+        })
+        
+        if error_rel < tol:
+            return pd.DataFrame(history).set_index("Iter"), "convergencia", x_next, error_rel
         x_n = x_next
-    return pd.DataFrame(history).set_index("Iter"), "limite", x_n, error_p
+    return pd.DataFrame(history).set_index("Iter"), "limite", x_n, error_rel
 
 # --- INTERFAZ ---
 
@@ -163,27 +200,29 @@ with col2:
                 for idx, li in enumerate(lista_Li):
                     st.latex(f"L_{{{idx}}}(x) = {sp.latex(li)}")
             
-            # Evaluación
+            # Evaluación y Análisis de Error
             x_sym = sp.symbols('x')
             y_res = float(poly_simplificado.subs(x_sym, x_eval_target))
-            st.info(f"Evaluado en x={x_eval_target}: **{y_res:.6f}**")
+            termino_err = calcular_termino_error_lagrange(x_pts, x_eval_target)
+            
+            c1, c2 = st.columns(2)
+            c1.info(f"Evaluado en x={x_eval_target}: **{y_res:.6f}**")
+            c2.warning(f"Término de Error $\prod(x-x_i)$: **{termino_err:.6f}**")
             
             # Gráfico
             x_range = np.linspace(min(x_pts)-0.5, max(x_pts)+0.5, 100)
-            # Lambdify convierte la expresión de sympy en una función evaluable por numpy
             f_lamb = sp.lambdify(x_sym, poly_simplificado, "numpy")
-            # Manejo de error por si el polinomio es una constante
             y_range = f_lamb(x_range) if isinstance(f_lamb(x_range), np.ndarray) else np.full_like(x_range, f_lamb(x_range))
             
             fig.add_trace(go.Scatter(x=x_range, y=y_range, name="P(x)", line=dict(color='#00cfcc')))
             fig.add_trace(go.Scatter(x=x_pts, y=y_pts, mode='markers', name="Puntos Originales", marker=dict(size=10, color='white')))
             fig.add_trace(go.Scatter(x=[x_eval_target], y=[y_res], mode='markers', name="Punto Evaluado", marker=dict(size=12, color='red', symbol='star')))
-            fig.update_layout(template="plotly_dark", title="Interpolación de Lagrange")
+            fig.update_layout(template="plotly_dark", title="Interpolación de Lagrange y Análisis de Error")
             st.plotly_chart(fig, use_container_width=True)
 
         elif metodo_sel == "Diferencias Centrales":
             df_derivs = metodo_diferencias_centrales(x_pts, y_pts)
-            st.subheader("Cálculo de Derivadas (Velocidad y Aceleración)")
+            st.subheader("Cálculo de Derivadas y Error de Truncamiento")
             st.dataframe(df_derivs.style.format(precision=6), use_container_width=True)
             
             fig.add_trace(go.Scatter(x=x_pts, y=y_pts, name="Datos Discretos", line=dict(dash='dash', color='gray')))
@@ -202,14 +241,15 @@ with col2:
                 elif estado == "error_signos": st.error("f(a) y f(b) deben tener signos opuestos.")
                 
                 if estado != "error_signos":
-                    m1, m2 = st.columns(2)
+                    m1, m2, m3 = st.columns(3)
                     m1.metric("Raiz Aproximada", f"{raiz:.8f}")
-                    m2.metric("Error Final", f"{err_f:.2e}%")
+                    m2.metric("Error Relativo Final", f"{err_f:.2e}%")
+                    m3.metric("Error Local Final", f"{df.iloc[-1]['Error Local (Abs)']:.2e}")
                     
                     x_plot = np.linspace(raiz-2, raiz+2, 200)
                     y_plot = [evaluar_f(func_input, v) for v in x_plot]
                     fig.add_trace(go.Scatter(x=x_plot, y=y_plot, name="f(x)"))
                     fig.add_hline(y=0, line_dash="dash")
-                    fig.update_layout(template="plotly_dark", title=f"Método de {metodo_sel}")
+                    fig.update_layout(template="plotly_dark", title=f"Método de {metodo_sel} - Análisis de Error")
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(df.style.format(precision=6), use_container_width=True)

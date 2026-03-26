@@ -161,14 +161,18 @@ with col1:
     
     if "Interpolación" in metodo_sel or "Diferencias" in metodo_sel:
         st.info("Ingresa los puntos como 'x, y' (uno por linea)")
-        puntos_input = st.text_area("Puntos (x, y):", value="0, 1\n1, 3\n2, 2")
+        puntos_input = st.text_area("Puntos (x, y):", value="1, exp(1)\n2, exp(2)\n3, exp(3)")
+        
+        # NUEVA CAJA PARA FUNCIÓN TEÓRICA
+        if metodo_sel == "Interpolación Lagrange":
+            funcion_teorica_input = st.text_input("Función Teórica f(x) (Opcional, para comparar):", value="")
+            x_eval_target = st.number_input("Valor x a evaluar (opcional):", value=1.5)
+            
         try:
             puntos = []
             for line in puntos_input.strip().split('\n'):
                 if line.strip():
                     x_str, y_str = line.split(',')
-                    # Usamos nuestra propia función evaluar_f para que entienda 'e', 'pi', etc.
-                    # Pasamos 0 como valor de x de relleno, ya que son puntos fijos
                     x_val = evaluar_f(x_str.strip(), 0) 
                     y_val = evaluar_f(y_str.strip(), 0)
                     
@@ -180,10 +184,8 @@ with col1:
             x_pts, y_pts = zip(*puntos)
             x_pts, y_pts = np.array(x_pts), np.array(y_pts)
         except Exception as e:
-            st.error("Formato de puntos incorrecto. Asegúrate de usar 'x, y' (ej: 1, e**1)")
-        
-        if metodo_sel == "Interpolación Lagrange":
-            x_eval_target = st.number_input("Valor x a evaluar (opcional):", value=0.5)
+            st.error("Formato de puntos incorrecto. Asegúrate de usar 'x, y' (ej: 1, exp(1))")
+            
     else:
         func_input = st.text_input("Funcion:", value="x**2 - 2")
         if metodo_sel == "Bisección":
@@ -221,15 +223,35 @@ with col2:
             c1.info(f"Evaluado en x={x_eval_target}: **{y_res:.6f}**")
             c2.warning(f"Término de Error $\prod(x-x_i)$: **{termino_err:.6f}**")
             
-            # Gráfico
-            x_range = np.linspace(min(x_pts)-0.5, max(x_pts)+0.5, 100)
-            f_lamb = sp.lambdify(x_sym, poly_simplificado, "numpy")
-            y_range = f_lamb(x_range) if isinstance(f_lamb(x_range), np.ndarray) else np.full_like(x_range, f_lamb(x_range))
+            # Gráfico: Configuración del rango
+            margen = (max(x_pts) - min(x_pts)) * 0.5 # Agregamos un 50% extra de margen para ver la extrapolación
+            x_range = np.linspace(min(x_pts)-margen, max(x_pts)+margen, 200)
             
-            fig.add_trace(go.Scatter(x=x_range, y=y_range, name="P(x)", line=dict(color='#00cfcc')))
-            fig.add_trace(go.Scatter(x=x_pts, y=y_pts, mode='markers', name="Puntos Originales", marker=dict(size=10, color='white')))
-            fig.add_trace(go.Scatter(x=[x_eval_target], y=[y_res], mode='markers', name="Punto Evaluado", marker=dict(size=12, color='red', symbol='star')))
-            fig.update_layout(template="plotly_dark", title="Interpolación de Lagrange y Análisis de Error")
+            # Evaluar polinomio de Lagrange
+            f_lamb = sp.lambdify(x_sym, poly_simplificado, "numpy")
+            y_range_lagrange = f_lamb(x_range) if isinstance(f_lamb(x_range), np.ndarray) else np.full_like(x_range, f_lamb(x_range))
+            
+            # Dibujar Polinomio de Lagrange
+            fig.add_trace(go.Scatter(x=x_range, y=y_range_lagrange, name="P(x) - Lagrange", line=dict(color='#00cfcc', width=3)))
+            
+            # --- NUEVO: Dibujar Función Teórica si fue provista ---
+            if funcion_teorica_input.strip() != "":
+                try:
+                    y_range_teorica = [evaluar_f(funcion_teorica_input, xi) for xi in x_range]
+                    # La ponemos en rojo y punteada para diferenciar
+                    fig.add_trace(go.Scatter(x=x_range, y=y_range_teorica, name=f"f(x)={funcion_teorica_input} Real", line=dict(color='#ff4b4b', dash='dash')))
+                    
+                    # Calcular error absoluto en el punto evaluado si existe función teórica
+                    y_teorico_punto = evaluar_f(funcion_teorica_input, x_eval_target)
+                    error_real_punto = abs(y_res - y_teorico_punto)
+                    st.error(f"Error Absoluto real en x={x_eval_target}: **{error_real_punto:.6f}**")
+                except:
+                    st.warning("No se pudo evaluar la función teórica ingresada para el gráfico.")
+            
+            fig.add_trace(go.Scatter(x=x_pts, y=y_pts, mode='markers', name="Nodos de Datos", marker=dict(size=10, color='white')))
+            fig.add_trace(go.Scatter(x=[x_eval_target], y=[y_res], mode='markers', name="Punto Evaluado", marker=dict(size=12, color='yellow', symbol='star')))
+            
+            fig.update_layout(template="plotly_dark", title="Interpolación de Lagrange vs Función Real")
             st.plotly_chart(fig, use_container_width=True)
 
         elif metodo_sel == "Diferencias Centrales":

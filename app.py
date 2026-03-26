@@ -166,15 +166,25 @@ with col2:
                     err_abs = abs(float(val_p.evalf()) - v_real)
                     st.warning(f"Error Real (Epsilon): {err_abs:.8f}")
 
-            # Gráfico (solo si no hay variables b, c, etc)
+            # Gráfico (solo si no hay variables b, c, etc en y)
             if all(sp.sympify(y).is_number for y in y_in_strs):
-                x_range = np.linspace(min(x_in_num)-1, max(x_in_num)+1, 100)
-                f_p = sp.lambdify(sp.symbols('x'), poly, "numpy")
+                x_range = np.linspace(min(x_in_num)-1, max(x_in_num)+1, 150)
+                
+                # Evaluación segura iterativa para el gráfico
+                y_poly_np = [float(poly.subs(sp.symbols('x'), xi).evalf()) for xi in x_range]
+                
                 fig = go.Figure()
-                fig.add_trace(go.Scatter(x=x_range, y=f_p(x_range), name="P(x)"))
-                fig.add_trace(go.Scatter(x=x_in_num, y=y_in_num, mode='markers', name="Nodos"))
-                fig.update_layout(template="plotly_dark")
-                st.plotly_chart(fig)
+                fig.add_trace(go.Scatter(x=x_range, y=y_poly_np, name="P(x)", line=dict(color='#00cfcc')))
+                
+                # Agregamos la Función Real al gráfico
+                if func_teorica:
+                    y_real_np = [evaluar_f(func_teorica, xi) for xi in x_range]
+                    if None not in y_real_np:
+                        fig.add_trace(go.Scatter(x=x_range, y=y_real_np, name="Función Real", line=dict(color='#ff4b4b', dash='dash')))
+                
+                fig.add_trace(go.Scatter(x=x_in_num, y=y_in_num, mode='markers', name="Nodos", marker=dict(size=10, color='white')))
+                fig.update_layout(template="plotly_dark", title="Interpolación vs Función Real")
+                st.plotly_chart(fig, use_container_width=True)
 
         elif metodo_sel == "Diferencias Centrales":
             df = metodo_diferencias_centrales(x_in_num, y_in_num)

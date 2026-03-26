@@ -1,66 +1,71 @@
-# Guía Completa de Estudio: Modelado y Simulación (Clase 3)
+# Master-Doc: Modelado, Interpolación y Derivación Numérica
 
-## 1. El Problema de los Datos Discretos
-En ingeniería y ciencia, los datos suelen presentarse como un conjunto de puntos aislados (experimentos, sensores, mediciones) y no como funciones continuas. 
-- **Desafío**: ¿Cómo predecir el comportamiento entre los puntos?
-- **Solución**: Construir un modelo funcional continuo a partir de datos discretos.
+## 1. La Problemática: De lo Discreto a lo Continuo
+En la práctica (laboratorios, sensores de IoT, telemetría), no obtenemos funciones como $f(x) = \sin(x)$. Obtenemos una **nube de puntos** $(x, y)$. 
 
----
-
-## 2. Interpolación de Lagrange
-Es una técnica para construir un **polinomio único** que pasa exactamente por todos los puntos de datos. A diferencia de otros métodos, no es una aproximación general, sino un ajuste perfecto a los valores conocidos.
-
-### La Estructura del Polinomio $P(x)$
-El polinomio final es una **suma ponderada** donde cada punto $y_i$ aporta su "influencia" mediante un polinomio base $L_i(x)$:
-$$P(x) = \sum_{i=0}^{n} y_i L_i(x)$$
-
-### Polinomios Base $L_i(x)$
-Están diseñados con una propiedad específica:
-- Valen **1** en su propio punto $x_i$.
-- Valen **0** en todos los demás puntos $x_j$ (don de $j \neq i$).
-
-
+El desafío es que para simular o predecir, necesitamos una función continua. Aquí aparecen dos herramientas fundamentales: **Interpolación** (para valores intermedios) y **Derivación Numérica** (para entender el cambio o la aceleración del sistema).
 
 ---
 
-## 3. Límites del Modelo y Precisión
-- **Interpolación**: Estimar valores dentro del rango de los datos conocidos (es confiable).
-- **Extrapolación**: Estimar valores fuera del rango (es riesgoso y puede llevar a errores graves).
-- **Error de Truncamiento**: En la aproximación de derivadas, el error proviene de ignorar los términos de orden superior en la serie de Taylor.
+## 2. Polinomio Interpolante de Lagrange
+Es el método para hallar una función polinómica de grado $n$ que pase **exactamente** por $n+1$ puntos. 
+
+### A. La Intuición de los Polinomios Base ($L_i$)
+La clave de Lagrange es que no intenta resolver un sistema de ecuaciones complejo de una vez. En su lugar, construye "funciones interruptoras" llamadas **Polinomios Base de Lagrange**:
+
+- Cada punto $x_i$ tiene su propio $L_i(x)$.
+- **Comportamiento**: Cuando evalúas $L_i$ en su propio punto $x_i$, el resultado es **1**. Cuando lo evalúas en cualquier otro punto de la muestra ($x_j$), el resultado es **0**.
+- **Construcción**: Se logra mediante productos de fracciones:
+  $L_i(x) = \prod_{j=0, j \neq i}^{n} \frac{x - x_j}{x_i - x_j}$
+
+### B. El Polinomio Final ($P(x)$ )
+El polinomio total es simplemente la suma de los valores $y$ multiplicados por sus respectivos polinomios base:
+$P(x) = y_0L_0(x) + y_1L_1(x) + ... + y_nL_n(x)$
+
+
 
 ---
 
-## 4. Diferencias Finitas y Divididas
-Son reordenamientos de la serie de Taylor truncada que permiten estimar derivadas a partir de los puntos.
+## 3. Derivación Numérica (Diferencias Finitas)
+Cuando solo tenemos puntos, no podemos derivar usando reglas de cálculo tradicionales. Usamos la **Serie de Taylor** truncada para aproximar la pendiente.
 
-### Concepto de Diferencias Centrales
-Para obtener una mejor aproximación de la derivada en un punto $x_i$, se utiliza la información de ambos lados ($x_{i-1}$ y $x_{i+1}$) y se promedia el cambio. Esto es más preciso que usar solo un lado.
+### A. Tipos de Diferencias
+Existen tres formas de calcular la derivada, pero varían en precisión:
+1. **Progresivas (Hacia adelante):** Usa el punto actual y el siguiente.
+2. **Regresivas (Hacia atrás):** Usa el punto actual y el anterior.
+3. **Centrales:** Usa el punto anterior y el siguiente, **ignorando el punto central** para el cálculo de la pendiente. Es la más precisa porque los errores de Taylor se cancelan parcialmente.
+
+### B. Fórmulas de Diferencias Centrales (Para el parcial)
+Asumiendo un paso constante $h$ (donde $h = x_{i+1} - x_i$):
+
+* **Primera Derivada (Velocidad/Pendiente):**
+    $f'(x_i) \approx \frac{f(x_{i+1}) - f(x_{i-1})}{2h}$
+* **Segunda Derivada (Aceleración/Curvatura):**
+    $f''(x_i) \approx \frac{f(x_{i+1}) - 2f(x_i) + f(x_{i-1})}{h^2}$
 
 
-
-### Fórmulas Clave (Paso constante $h$)
-Si la distancia entre puntos $x$ es constante ($h$), usamos:
-
-1. **Primera Derivada (Pendiente)**:
-   $$f'(x_i) \approx \frac{f(x_{i+1}) - f(x_{i-1})}{2h}$$
-
-2. **Segunda Derivada (Concavidad/Aceleración)**:
-   $$f''(x_i) \approx \frac{f(x_{i+1}) - 2f(x_i) + f(x_{i-1})}{h^2}$$
 
 ---
 
-## 5. Implementación en Código (Python)
-Para verificar la efectividad de las diferencias centrales, se puede aplicar a una función conocida:
+## 4. Análisis de Errores y Límites
+Es vital entender por qué fallan estos modelos para responder preguntas teóricas:
+
+1.  **Error de Truncamiento**: Ocurre porque al usar Diferencias Finitas "cortamos" la Serie de Taylor. A menor $h$ (paso más chico), menor es el error, pero aumenta el riesgo de errores de redondeo en la computadora.
+2.  **Interpolación vs. Extrapolación**:
+    * **Interpolación**: Estimar entre $x_0$ y $x_n$. Es seguro.
+    * **Extrapolación**: Estimar fuera del rango. El polinomio de Lagrange puede dispararse a valores infinitos rápidamente (efecto de oscilación), haciendo la predicción inútil.
+
+---
+
+## 5. Implementación Práctica (Lógica de Código)
+Para el parcial, podrías necesitar entender cómo se traduce esto a algoritmos:
 
 ```python
-# Ejemplo: f(x) = x^3 - 2x + 1
-# Punto de interés: x = 2, Paso: h = 0.1
+# Supongamos estos datos de un experimento:
+x_data = [0, 1, 2]
+y_data = [1, 3, 2] 
 
-def f(x):
-    return x**3 - 2*x + 1
-
-def primera_derivada(f, x, h):
-    return (f(x + h) - f(x - h)) / (2 * h)
-
-def segunda_derivada(f, x, h):
-    return (f(x + h) - 2*f(x) + f(x - h)) / (h**2)
+# Para calcular la derivada en el punto x=1 (índice 1):
+h = 1 # porque 1-0 = 1
+derivada_en_1 = (y_data[2] - y_data[0]) / (2 * h)
+# Resultado: (2 - 1) / 2 = 0.5

@@ -163,12 +163,24 @@ with col1:
         st.info("Ingresa los puntos como 'x, y' (uno por linea)")
         puntos_input = st.text_area("Puntos (x, y):", value="0, 1\n1, 3\n2, 2")
         try:
-            # Procesar el input ignorando lineas en blanco
-            puntos = [list(map(float, line.split(','))) for line in puntos_input.strip().split('\n') if line.strip()]
+            puntos = []
+            for line in puntos_input.strip().split('\n'):
+                if line.strip():
+                    x_str, y_str = line.split(',')
+                    # Usamos nuestra propia función evaluar_f para que entienda 'e', 'pi', etc.
+                    # Pasamos 0 como valor de x de relleno, ya que son puntos fijos
+                    x_val = evaluar_f(x_str.strip(), 0) 
+                    y_val = evaluar_f(y_str.strip(), 0)
+                    
+                    if x_val is None or y_val is None:
+                        raise ValueError("Error al evaluar expresión")
+                        
+                    puntos.append([x_val, y_val])
+                    
             x_pts, y_pts = zip(*puntos)
             x_pts, y_pts = np.array(x_pts), np.array(y_pts)
-        except:
-            st.error("Formato de puntos incorrecto. Asegúrate de usar 'x, y'")
+        except Exception as e:
+            st.error("Formato de puntos incorrecto. Asegúrate de usar 'x, y' (ej: 1, e**1)")
         
         if metodo_sel == "Interpolación Lagrange":
             x_eval_target = st.number_input("Valor x a evaluar (opcional):", value=0.5)

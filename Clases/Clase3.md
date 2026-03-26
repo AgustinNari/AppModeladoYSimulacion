@@ -22,8 +22,6 @@ La clave de Lagrange es que no intenta resolver un sistema de ecuaciones complej
 El polinomio total es simplemente la suma de los valores $y$ multiplicados por sus respectivos polinomios base:
 $P(x) = y_0L_0(x) + y_1L_1(x) + ... + y_nL_n(x)$
 
-
-
 ---
 
 ## 3. Derivación Numérica (Diferencias Finitas)
@@ -43,8 +41,6 @@ Asumiendo un paso constante $h$ (donde $h = x_{i+1} - x_i$):
 * **Segunda Derivada (Aceleración/Curvatura):**
     $f''(x_i) \approx \frac{f(x_{i+1}) - 2f(x_i) + f(x_{i-1})}{h^2}$
 
-
-
 ---
 
 ## 4. Análisis de Errores y Límites
@@ -54,6 +50,15 @@ Es vital entender por qué fallan estos modelos para responder preguntas teóric
 2.  **Interpolación vs. Extrapolación**:
     * **Interpolación**: Estimar entre $x_0$ y $x_n$. Es seguro.
     * **Extrapolación**: Estimar fuera del rango. El polinomio de Lagrange puede dispararse a valores infinitos rápidamente (efecto de oscilación), haciendo la predicción inútil.
+3.  [cite_start]**Error de Interpolación de Lagrange**: La diferencia entre la función real $f(x)$ y el polinomio interpolante $P(x)$ se conoce como error de interpolación[cite: 136]. [cite_start]Se expresa con la siguiente fórmula matemática[cite: 138]:
+    $$E(x) = f(x) - P(x) = \frac{f^{(n+1)}(\xi)}{(n+1)!} \prod_{i=0}^{n}(x - x_i)$$
+    Donde:
+    * $f^{(n+1)}(\xi)$: Es la derivada de orden $n+1$ de la función real, evaluada en un punto desconocido $\xi$[cite: 139].
+    * $(n+1)!$: Es el factorial, que al crecer rápidamente ayuda a reducir el error a medida que se agregan más puntos[cite: 140].
+    * $\prod_{i=0}^{n}(x - x_i)$: Es el producto de las distancias; el error es cero justo en los puntos de datos y mayor entre ellos[cite: 141].
+    
+    Como no siempre conocemos el valor exacto de $\xi$, se suele calcular una **Cota Superior de Error** usando el valor máximo posible de esa derivada ($M_{n+1}$) en el intervalo[cite: 373, 374, 376, 377]:
+    $$|E(x)| \le \frac{M_{n+1}}{(n+1)!} \left| \prod_{i=0}^{n}(x - x_i) \right|$$
 
 ---
 

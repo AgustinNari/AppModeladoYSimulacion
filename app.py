@@ -126,6 +126,58 @@ def metodo_simpson_13(f_str, a, b, n):
     return integral, error_trunc, h, pd.DataFrame(tabla)
 
 
+# --- INTEGRACIÓN: SIMPSON 3/8 ---
+
+def metodo_simpson_38(f_str, a, b, n):
+    """Regla de Simpson 3/8 compuesta. n debe ser múltiplo de 3."""
+    if n % 3 != 0:
+        n += (3 - (n % 3))
+    h = (b - a) / n
+    x_pts = np.linspace(a, b, n + 1)
+    y_pts = np.array([evaluar_f(f_str, xi) for xi in x_pts])
+    if any(v is None for v in y_pts):
+        return None, None, None, None
+
+    # Suma compuesta Simpson 3/8
+    suma = y_pts[0] + y_pts[-1]
+    for i in range(1, n):
+        if i % 3 == 0:
+            suma += 2 * y_pts[i]
+        else:
+            suma += 3 * y_pts[i]
+    integral = (3 * h / 8) * suma
+
+    # Error de truncamiento: |E_T| <= (b-a)*h^4/80 * max|f''''(xi)|
+    h_num = max(h * 0.1, 1e-4)
+    f4_vals = []
+    for xi in x_pts[2:-2]:
+        vals = [evaluar_f(f_str, xi + k * h_num) for k in [-2, -1, 0, 1, 2]]
+        if all(v is not None for v in vals):
+            f4 = (vals[0] - 4*vals[1] + 6*vals[2] - 4*vals[3] + vals[4]) / h_num**4
+            f4_vals.append(abs(f4))
+    f4_max = max(f4_vals) if f4_vals else 0.0
+    error_trunc = abs((b - a) * h**4 * f4_max / 80)
+
+    # Tabla por nodo
+    tabla = []
+    for k in range(n + 1):
+        if k == 0 or k == n:
+            coef = 1
+        elif k % 3 == 0:
+            coef = 2
+        else:
+            coef = 3
+        fk = float(y_pts[k])
+        tabla.append({
+            "N": k,
+            "Xₙ": round(float(x_pts[k]), 8),
+            "F(Xₙ)": round(fk, 8),
+            "Coef.": coef,
+            "Coef. × F(Xₙ)": round(coef * fk, 8),
+        })
+    return integral, error_trunc, h, pd.DataFrame(tabla)
+
+
 # --- INTEGRACIÓN: TRAPECIOS ---
 
 def metodo_trapecios(f_str, a, b, n):
@@ -213,7 +265,7 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
 
 st.sidebar.header("Configuración")
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
-    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Simpson 1/3", "Trapecios"])
+    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Simpson 1/3", "Simpson 3/8", "Trapecios"])
 
 col1, col2 = st.columns([1, 2])
 
@@ -249,6 +301,19 @@ with col1:
         except:
             st.error("Límites inválidos. Usá expresiones como: pi/2, sqrt(2), 1.5, 2*pi")
             a_simp, b_simp = 0.0, 1.0
+    elif metodo_sel == "Simpson 3/8":
+        func_input = st.text_input("f(x):", value="x**3")
+        a_simp38_str = st.text_input("Límite inferior a", value="0", help="Podés escribir expresiones como pi/2, sqrt(2), 2*pi, etc.")
+        b_simp38_str = st.text_input("Límite superior b", value="1", help="Podés escribir expresiones como pi/2, sqrt(2), 2*pi, etc.")
+        n_simp38 = int(st.number_input("Nº subintervalos n (múltiplo de 3)", value=3, min_value=3, step=3))
+        if n_simp38 % 3 != 0:
+            st.warning("n debe ser múltiplo de 3 — se ajustará automáticamente.")
+        try:
+            a_simp38 = float(sp.sympify(a_simp38_str).evalf())
+            b_simp38 = float(sp.sympify(b_simp38_str).evalf())
+        except:
+            st.error("Límites inválidos. Usá expresiones como: pi/2, sqrt(2), 1.5, 2*pi")
+            a_simp38, b_simp38 = 0.0, 1.0
     elif metodo_sel == "Trapecios":
         func_input = st.text_input("f(x):", value="x**2")
         a_trap_str = st.text_input("Límite inferior a", value="0", help="Podés escribir expresiones como pi/2, sqrt(2), 2*pi, etc.")
@@ -407,6 +472,63 @@ with col2:
                     fig.update_layout(
                         template="plotly_dark",
                         title=f"Simpson 1/3 — ∫f(x)dx ≈ {integral:.6f}",
+                        xaxis_title="x", yaxis_title="f(x)"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
+
+        elif metodo_sel == "Simpson 3/8":
+            integral, err_trunc, h_step, df_tabla = metodo_simpson_38(func_input, a_simp38, b_simp38, n_simp38)
+            if integral is not None:
+                st.subheader("Fórmulas")
+                st.latex(
+                    r"h = \frac{b - a}{n}"
+                )
+                st.latex(
+                    r"I \approx \frac{3h}{8}\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + \cdots + f(x_n)\right]"
+                )
+                st.latex(
+                    r"|E_T| \leq \frac{(b-a)\,h^4}{80}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
+                )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $a,\\, b$ | Límites inferior y superior del intervalo de integración |
+| $n$ | Número de subintervalos (debe ser múltiplo de 3) |
+| $h$ | Ancho de cada subintervalo: $h = (b-a)/n$ |
+| $x_0, x_1, \\ldots, x_n$ | Nodos equiespaciados: $x_k = a + k\\,h$ |
+| $f(x_k)$ | Valor de la función en el nodo $x_k$ |
+| $I$ | Valor aproximado de la integral $\\int_a^b f(x)\\,dx$ |
+| $E_T$ | Error de truncamiento de la fórmula compuesta |
+| $f^{(4)}(\\xi)$ | Cuarta derivada de $f$ en algún punto $\\xi \\in [a,b]$ |
+""")
+                st.subheader("Resultado")
+                col_r1, col_r2, col_r3 = st.columns(3)
+                col_r1.metric("Integral ≈", f"{integral:.8f}")
+                col_r2.metric("Paso h", f"{h_step:.6f}")
+                col_r3.metric("Error Trunc. |Eₜ|", fmt_error(err_trunc))
+                st.dataframe(df_tabla, use_container_width=True)
+                # Gráfico con área sombreada
+                x_plot = np.linspace(a_simp38, b_simp38, 300)
+                y_plot = [evaluar_f(func_input, xi) for xi in x_plot]
+                if None not in y_plot:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=x_plot, y=y_plot, name="f(x)",
+                        line=dict(color='#e03ce6', width=2),
+                        fill='tozeroy', fillcolor='rgba(224,60,230,0.15)'
+                    ))
+                    x_nodes = np.linspace(a_simp38, b_simp38, n_simp38 + 1)
+                    y_nodes = [evaluar_f(func_input, xi) for xi in x_nodes]
+                    fig.add_trace(go.Scatter(
+                        x=x_nodes, y=y_nodes, mode='markers',
+                        name="Nodos Simpson 3/8", marker=dict(size=8, color='#00cfcc')
+                    ))
+                    fig.update_layout(
+                        template="plotly_dark",
+                        title=f"Simpson 3/8 — ∫f(x)dx ≈ {integral:.6f}",
                         xaxis_title="x", yaxis_title="f(x)"
                     )
                     st.plotly_chart(fig, use_container_width=True)

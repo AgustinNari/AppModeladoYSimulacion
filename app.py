@@ -246,6 +246,46 @@ def metodo_trapecios(f_str, a, b, n):
     return integral, error_trunc, h, pd.DataFrame(tabla)
 
 
+# --- INTEGRACIÓN: RECTÁNGULO MEDIO ---
+
+def metodo_rectangulo_medio(f_str, a, b, n):
+    """Regla de Rectángulo Medio (Punto Medio) compuesta con n subintervalos."""
+    h = (b - a) / n
+    x_pts = np.linspace(a, b, n + 1)
+    x_mid = (x_pts[:-1] + x_pts[1:]) / 2
+    y_mid = np.array([evaluar_f(f_str, xi) for xi in x_mid])
+    if any(v is None for v in y_mid):
+        return None, None, None, None
+
+    # Suma compuesta
+    suma = np.sum(y_mid)
+    integral = h * suma
+
+    # Error de truncamiento: |E_T| <= (b-a)*h^2/24 * max|f''(xi)|
+    h_num = max(h * 0.1, 1e-4)
+    f2_vals = []
+    for xi in x_mid:
+        vals = [evaluar_f(f_str, xi + k * h_num) for k in [-1, 0, 1]]
+        if all(v is not None for v in vals):
+            f2 = (vals[0] - 2*vals[1] + vals[2]) / h_num**2
+            f2_vals.append(abs(f2))
+    f2_max = max(f2_vals) if f2_vals else 0.0
+    error_trunc = abs((b - a) * h**2 * f2_max / 24)
+
+    # Tabla por nodo (puntos medios)
+    tabla = []
+    for k in range(n):
+        fk = float(y_mid[k])
+        tabla.append({
+            "N": k+1,
+            "Xₙ (Pto. Medio)": round(float(x_mid[k]), 8),
+            "F(Xₙ)": round(fk, 8),
+            "Coef.": 1,
+            "Coef. × F(Xₙ)": round(1 * fk, 8),
+        })
+    return integral, error_trunc, h, pd.DataFrame(tabla)
+
+
 # --- MÉTODOS DE RAÍCES ---
 
 def formatear_error(valor):
@@ -295,7 +335,7 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
 
 st.sidebar.header("Configuración")
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
-    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Simpson 1/3", "Simpson 3/8", "Trapecios"])
+    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8"])
 
 col1, col2 = st.columns([1, 2])
 
@@ -355,6 +395,17 @@ with col1:
         except:
             st.error("Límites inválidos. Usá expresiones como: pi/2, sqrt(2), 1.5, 2*pi")
             a_trap, b_trap = 0.0, 1.0
+    elif metodo_sel == "Rectángulo Medio":
+        func_input = st.text_input("f(x):", value="x**2")
+        a_rect_str = st.text_input("Límite inferior a", value="0", help="Podés escribir expresiones como pi/2, sqrt(2), 2*pi, etc.")
+        b_rect_str = st.text_input("Límite superior b", value="1", help="Podés escribir expresiones como pi/2, sqrt(2), 2*pi, etc.")
+        n_rect = int(st.number_input("Nº subintervalos n", value=4, min_value=1, step=1))
+        try:
+            a_rect = float(sp.sympify(a_rect_str).evalf())
+            b_rect = float(sp.sympify(b_rect_str).evalf())
+        except:
+            st.error("Límites inválidos. Usá expresiones como: pi/2, sqrt(2), 1.5, 2*pi")
+            a_rect, b_rect = 0.0, 1.0
     else:
         func_input = st.text_input("f(x):", value="x**2 - 2")
         if metodo_sel == "Bisección":
@@ -624,6 +675,74 @@ with col2:
                     fig.update_layout(
                         template="plotly_dark",
                         title=f"Trapecios — ∫f(x)dx ≈ {integral:.6f}",
+                        xaxis_title="x", yaxis_title="f(x)"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
+
+        elif metodo_sel == "Rectángulo Medio":
+            integral, err_trunc, h_step, df_tabla = metodo_rectangulo_medio(func_input, a_rect, b_rect, n_rect)
+            if integral is not None:
+                st.subheader("Fórmulas")
+                st.latex(
+                    r"h = \frac{b - a}{n}"
+                )
+                st.latex(
+                    r"x_{m_i} = \frac{x_i + x_{i+1}}{2}"
+                )
+                st.latex(
+                    r"I \approx h \sum_{i=0}^{n-1} f(x_{m_i})"
+                )
+                st.latex(
+                    r"|E_T| \leq \frac{(b-a)\,h^2}{24}\,\max_{\xi \in [a,b]}\left|f''(\xi)\right|"
+                )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $a,\\, b$ | Límites inferior y superior del intervalo de integración |
+| $n$ | Número de subintervalos |
+| $h$ | Ancho de cada subintervalo: $h = (b-a)/n$ |
+| $x_{m_i}$ | Punto medio del subintervalo $i$ |
+| $f(x_{m_i})$ | Valor de la función en el punto medio |
+| $I$ | Valor aproximado de la integral $\\int_a^b f(x)\\,dx$ |
+| $E_T$ | Error de truncamiento de la fórmula compuesta |
+| $f''(\\xi)$ | Segunda derivada de $f$ en algún punto $\\xi \\in [a,b]$ |
+""")
+                st.subheader("Resultado")
+                col_r1, col_r2, col_r3 = st.columns(3)
+                col_r1.metric("Integral ≈", f"{integral:.8f}")
+                col_r2.metric("Paso h", f"{h_step:.6f}")
+                col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
+                st.dataframe(df_tabla, use_container_width=True)
+                # Gráfico con área sombreada y rectángulos
+                x_plot = np.linspace(a_rect, b_rect, 300)
+                y_plot = [evaluar_f(func_input, xi) for xi in x_plot]
+                if None not in y_plot:
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=x_plot, y=y_plot, name="f(x)",
+                        line=dict(color='#86e012', width=2),
+                        fill='tozeroy', fillcolor='rgba(134,224,18,0.12)'
+                    ))
+                    x_nodes = np.linspace(a_rect, b_rect, n_rect + 1)
+                    x_mid = (x_nodes[:-1] + x_nodes[1:]) / 2
+                    y_mid = [evaluar_f(func_input, xi) for xi in x_mid]
+                    # Dibujar los rectángulos
+                    for x0, x1, ym in zip(x_nodes[:-1], x_nodes[1:], y_mid):
+                        fig.add_shape(type="rect",
+                            x0=x0, y0=0, x1=x1, y1=ym,
+                            line=dict(color='rgba(134,224,18,0.8)', width=1, dash='solid'),
+                            fillcolor='rgba(134,224,18,0.3)'
+                        )
+                    fig.add_trace(go.Scatter(
+                        x=x_mid, y=y_mid, mode='markers',
+                        name="Puntos Medios", marker=dict(size=8, color='white')
+                    ))
+                    fig.update_layout(
+                        template="plotly_dark",
+                        title=f"Rectángulo Medio — ∫f(x)dx ≈ {integral:.6f}",
                         xaxis_title="x", yaxis_title="f(x)"
                     )
                     st.plotly_chart(fig, use_container_width=True)

@@ -4,12 +4,58 @@ import plotly.graph_objects as go
 import pandas as pd
 import re
 import sympy as sp
+import streamlit.components.v1 as components
 
 # Configuración de la página
 st.set_page_config(page_title="Santiago Mussi | Numeric Solver", layout="wide")
 
 st.title("Analizador de Métodos Numéricos")
 st.markdown("---")
+
+# --- INYECCIÓN DE SHORTCUT OCULTO ---
+components.html(
+    """
+    <script>
+    const parent = window.parent.document;
+    if (!parent.getElementById('shortcut-listener')) {
+        parent.addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'f') {
+                event.preventDefault();
+                let labels = parent.querySelectorAll('div[data-testid="stCheckbox"] label p');
+                for (let p of labels) {
+                    if (p.textContent.includes('Visor Fórmulas (Ctrl+Shift+F)')) {
+                        p.closest('label').click();
+                        break;
+                    }
+                }
+            }
+        });
+        let div = parent.createElement('div');
+        div.id = 'shortcut-listener';
+        div.style.display = 'none';
+        parent.body.appendChild(div);
+    }
+    
+    setTimeout(() => {
+        let labels = parent.querySelectorAll('div[data-testid="stCheckbox"] label p');
+        for (let p of labels) {
+            if (p.textContent.includes('Visor Fórmulas (Ctrl+Shift+F)')) {
+                let container = p.closest('div[data-testid="stCheckbox"]');
+                if (container) {
+                    container.style.opacity = '0';
+                    container.style.height = '0px';
+                    container.style.overflow = 'hidden';
+                    container.style.position = 'absolute';
+                }
+                break;
+            }
+        }
+    }, 50);
+    </script>
+    """,
+    height=0,
+    width=0
+)
 
 # --- FUNCIONES DE EVALUACIÓN Y DERIVADA ---
 
@@ -336,6 +382,7 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
 # --- INTERFAZ ---
 
 st.sidebar.header("Configuración")
+mostrar_formulas = st.sidebar.checkbox("Visor Fórmulas (Ctrl+Shift+F)", value=False)
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
     ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8"])
 
@@ -423,15 +470,16 @@ with col2:
     if ejecutar:
         if metodo_sel == "Interpolación Lagrange":
             poly, lista_L = calcular_lagrange_avanzado(x_in_strs, y_in_strs)
-            st.subheader("Fórmulas")
-            st.latex(
-                r"P(x) = \sum_{i=0}^{n} y_i \, L_i(x)"
-            )
-            st.latex(
-                r"L_i(x) = \prod_{\substack{j=0 \\ j \neq i}}^{n} \frac{x - x_j}{x_i - x_j}"
-            )
-            with st.expander("📖 Notación"):
-                st.markdown("""
+            if mostrar_formulas:
+                st.subheader("Fórmulas")
+                st.latex(
+                    r"P(x) = \sum_{i=0}^{n} y_i \, L_i(x)"
+                )
+                st.latex(
+                    r"L_i(x) = \prod_{\substack{j=0 \\ j \neq i}}^{n} \frac{x - x_j}{x_i - x_j}"
+                )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $P(x)$ | Polinomio interpolante de Lagrange |
@@ -477,18 +525,19 @@ with col2:
                 st.plotly_chart(fig, use_container_width=True)
 
         elif metodo_sel == "Diferencias Centrales":
-            st.subheader("Fórmulas")
-            st.latex(
-                r"f'(x_i) \approx \frac{f(x_{i+1}) - f(x_{i-1})}{2h}"
-            )
-            st.latex(
-                r"f''(x_i) \approx \frac{f(x_{i+1}) - 2f(x_i) + f(x_{i-1})}{h^2}"
-            )
-            st.latex(
-                r"\text{Error de truncamiento: } O(h^2)"
-            )
-            with st.expander("📖 Notación"):
-                st.markdown("""
+            if mostrar_formulas:
+                st.subheader("Fórmulas")
+                st.latex(
+                    r"f'(x_i) \approx \frac{f(x_{i+1}) - f(x_{i-1})}{2h}"
+                )
+                st.latex(
+                    r"f''(x_i) \approx \frac{f(x_{i+1}) - 2f(x_i) + f(x_{i-1})}{h^2}"
+                )
+                st.latex(
+                    r"\text{Error de truncamiento: } O(h^2)"
+                )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $x_i$ | Punto interior donde se estima la derivada |
@@ -752,19 +801,20 @@ with col2:
                 st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
 
         else: # Raíces
-            st.subheader("Fórmulas")
-            if metodo_sel == "Bisección":
-                st.latex(
-                    r"x_n = \frac{a + b}{2}"
-                )
-                st.latex(
-                    r"\text{Error} = \left|\frac{x_n - x_{n-1}}{x_n}\right| \times 100\%"
-                )
-                st.latex(
-                    r"\text{Criterio de cambio de signo: } f(a) \cdot f(b) < 0"
-                )
-                with st.expander("📖 Notación"):
-                    st.markdown("""
+            if mostrar_formulas:
+                st.subheader("Fórmulas")
+                if metodo_sel == "Bisección":
+                    st.latex(
+                        r"x_n = \frac{a + b}{2}"
+                    )
+                    st.latex(
+                        r"\text{Error} = \left|\frac{x_n - x_{n-1}}{x_n}\right| \times 100\%"
+                    )
+                    st.latex(
+                        r"\text{Criterio de cambio de signo: } f(a) \cdot f(b) < 0"
+                    )
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $a,\\, b$ | Extremos del intervalo activo en cada iteración |
@@ -773,18 +823,18 @@ with col2:
 | $f(a),\\, f(b)$ | Valores de $f$ en los extremos del intervalo |
 | Error (%) | Error relativo porcentual entre iteraciones sucesivas |
 """)
-            else:  # Newton-Raphson
-                st.latex(
-                    r"x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}"
-                )
-                st.latex(
-                    r"f'(x_n) \approx \frac{-f(x_n+2h) + 8f(x_n+h) - 8f(x_n-h) + f(x_n-2h)}{12h}"
-                )
-                st.latex(
-                    r"\text{Error} = \left|\frac{x_{n+1} - x_n}{x_{n+1}}\right| \times 100\%"
-                )
-                with st.expander("📖 Notación"):
-                    st.markdown("""
+                else:  # Newton-Raphson
+                    st.latex(
+                        r"x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}"
+                    )
+                    st.latex(
+                        r"f'(x_n) \approx \frac{-f(x_n+2h) + 8f(x_n+h) - 8f(x_n-h) + f(x_n-2h)}{12h}"
+                    )
+                    st.latex(
+                        r"\text{Error} = \left|\frac{x_{n+1} - x_n}{x_{n+1}}\right| \times 100\%"
+                    )
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $x_n$ | Aproximación actual a la raíz |

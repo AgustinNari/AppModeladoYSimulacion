@@ -200,9 +200,16 @@ with col2:
     if ejecutar:
         if metodo_sel == "Interpolación Lagrange":
             poly, lista_L = calcular_lagrange_avanzado(x_in_strs, y_in_strs)
+            st.subheader("Fórmulas")
+            st.latex(
+                r"P(x) = \sum_{i=0}^{n} y_i \, L_i(x)"
+            )
+            st.latex(
+                r"L_i(x) = \prod_{\substack{j=0 \\ j \neq i}}^{n} \frac{x - x_j}{x_i - x_j}"
+            )
             st.subheader("Resultado")
             st.latex(f"P(x) = {sp.latex(poly)}")
-            
+
             # Evaluación y Error
             x_ev_sym = sp.sympify(x_eval)
             val_p = poly.subs(sp.symbols('x'), x_ev_sym)
@@ -237,6 +244,17 @@ with col2:
                 st.plotly_chart(fig, use_container_width=True)
 
         elif metodo_sel == "Diferencias Centrales":
+            st.subheader("Fórmulas")
+            st.latex(
+                r"f'(x_i) \approx \frac{f(x_{i+1}) - f(x_{i-1})}{2h}"
+            )
+            st.latex(
+                r"f''(x_i) \approx \frac{f(x_{i+1}) - 2f(x_i) + f(x_{i-1})}{h^2}"
+            )
+            st.latex(
+                r"\text{Error de truncamiento: } O(h^2)"
+            )
+            st.subheader("Resultado")
             df = metodo_diferencias_centrales(x_in_num, y_in_num)
             if df is not None: st.table(df)
             else: st.error("Se necesitan al menos 3 puntos.")
@@ -244,17 +262,21 @@ with col2:
         elif metodo_sel == "Simpson 1/3":
             integral, err_trunc, h_step, df_tabla = metodo_simpson_13(func_input, a_simp, b_simp, n_simp)
             if integral is not None:
-                st.subheader("Resultado")
+                st.subheader("Fórmulas")
+                st.latex(
+                    r"h = \frac{b - a}{n}"
+                )
                 st.latex(
                     r"I \approx \frac{h}{3}\left[f(x_0) + 4f(x_1) + 2f(x_2) + \cdots + 4f(x_{n-1}) + f(x_n)\right]"
                 )
+                st.latex(
+                    r"|E_T| \leq \frac{(b-a)\,h^4}{180}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
+                )
+                st.subheader("Resultado")
                 col_r1, col_r2, col_r3 = st.columns(3)
                 col_r1.metric("Integral ≈", f"{integral:.8f}")
                 col_r2.metric("Paso h", f"{h_step:.6f}")
                 col_r3.metric("Error Trunc. |Eₜ|", f"{err_trunc:.4e}")
-                st.info(
-                    r"$|E_T| \leq \dfrac{(b-a)\,h^4}{180}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|$"
-                )
                 st.dataframe(df_tabla, use_container_width=True)
                 # Gráfico con área sombreada
                 x_plot = np.linspace(a_simp, b_simp, 300)
@@ -282,6 +304,28 @@ with col2:
                 st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
 
         else: # Raíces
+            st.subheader("Fórmulas")
+            if metodo_sel == "Bisección":
+                st.latex(
+                    r"x_n = \frac{a + b}{2}"
+                )
+                st.latex(
+                    r"\text{Error} = \left|\frac{x_n - x_{n-1}}{x_n}\right| \times 100\%"
+                )
+                st.latex(
+                    r"\text{Criterio de cambio de signo: } f(a) \cdot f(b) < 0"
+                )
+            else:  # Newton-Raphson
+                st.latex(
+                    r"x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}"
+                )
+                st.latex(
+                    r"f'(x_n) \approx \frac{-f(x_n+2h) + 8f(x_n+h) - 8f(x_n-h) + f(x_n-2h)}{12h}"
+                )
+                st.latex(
+                    r"\text{Error} = \left|\frac{x_{n+1} - x_n}{x_{n+1}}\right| \times 100\%"
+                )
+            st.subheader("Resultado")
             df, estado, raiz, err = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in) if metodo_sel == "Bisección" else metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
             if df is not None:
                 st.success(f"Raíz: {raiz:.8f}")

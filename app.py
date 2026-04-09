@@ -62,16 +62,27 @@ components.html(
 def evaluar_f(f_str, x_val):
     """Evalúa funciones para cálculos numéricos rápidos (gráficos y raíces)"""
     try:
-        f_proc = f_str.replace("^", "**")
+        f_proc = f_str.replace("^", "**").replace("sen", "sin")
         f_proc = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_proc)
         contexto = {
             "np": np, "x": x_val, "sin": np.sin, "cos": np.cos, 
             "tan": np.tan, "exp": np.exp, "log": np.log, 
             "sqrt": np.sqrt, "pi": np.pi, "e": np.e, "sp": sp
         }
-        return eval(f_proc, {"__builtins__": None}, contexto)
-    except:
-        return None
+        res = eval(f_proc, {"__builtins__": None}, contexto)
+        if np.isnan(float(res)) or np.isinf(float(res)):
+            raise ValueError("Valor indefinido")
+        return float(res)
+    except Exception:
+        # Intento de aproximación por límite si hay singularidad matemática (ej. x=0 en sin(x)/x)
+        try:
+            contexto["x"] = x_val + 1e-12
+            res_lim = eval(f_proc, {"__builtins__": None}, contexto)
+            if np.isnan(float(res_lim)) or np.isinf(float(res_lim)):
+                return None
+            return float(res_lim)
+        except:
+            return None
 
 def calcular_derivada_robusta(f_str, x_val, h=1e-5):
     f = lambda x: evaluar_f(f_str, x)

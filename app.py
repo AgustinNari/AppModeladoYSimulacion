@@ -556,18 +556,19 @@ with col2:
         elif metodo_sel == "Simpson 1/3":
             integral, err_trunc, h_step, df_tabla = metodo_simpson_13(func_input, a_simp, b_simp, n_simp)
             if integral is not None:
-                st.subheader("Fórmulas")
-                st.latex(
-                    r"h = \frac{b - a}{n}"
-                )
-                st.latex(
-                    r"I \approx \frac{h}{3}\left[f(x_0) + 4f(x_1) + 2f(x_2) + \cdots + 4f(x_{n-1}) + f(x_n)\right]"
-                )
-                st.latex(
-                    r"|E_T| \leq \frac{(b-a)\,h^4}{180}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
-                )
-                with st.expander("📖 Notación"):
-                    st.markdown("""
+                if mostrar_formulas:
+                    st.subheader("Fórmulas")
+                    st.latex(
+                        r"h = \frac{b - a}{n}"
+                    )
+                    st.latex(
+                        r"I \approx \frac{h}{3}\left[f(x_0) + 4f(x_1) + 2f(x_2) + \cdots + 4f(x_{n-1}) + f(x_n)\right]"
+                    )
+                    st.latex(
+                        r"|E_T| \leq \frac{(b-a)\,h^4}{180}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
+                    )
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $a,\\, b$ | Límites inferior y superior del intervalo de integración |
@@ -613,18 +614,19 @@ with col2:
         elif metodo_sel == "Simpson 3/8":
             integral, err_trunc, h_step, df_tabla = metodo_simpson_38(func_input, a_simp38, b_simp38, n_simp38, a_simp38_str, b_simp38_str)
             if integral is not None:
-                st.subheader("Fórmulas")
-                st.latex(
-                    r"h = \frac{b - a}{n}"
-                )
-                st.latex(
-                    r"I \approx \frac{3h}{8}\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + \cdots + f(x_n)\right]"
-                )
-                st.latex(
-                    r"|E_T| \leq \frac{(b-a)\,h^4}{80}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
-                )
-                with st.expander("📖 Notación"):
-                    st.markdown("""
+                if mostrar_formulas:
+                    st.subheader("Fórmulas")
+                    st.latex(
+                        r"h = \frac{b - a}{n}"
+                    )
+                    st.latex(
+                        r"I \approx \frac{3h}{8}\left[f(x_0) + 3f(x_1) + 3f(x_2) + 2f(x_3) + \cdots + f(x_n)\right]"
+                    )
+                    st.latex(
+                        r"|E_T| \leq \frac{(b-a)\,h^4}{80}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
+                    )
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $a,\\, b$ | Límites inferior y superior del intervalo de integración |
@@ -670,18 +672,19 @@ with col2:
         elif metodo_sel == "Trapecios":
             integral, err_trunc, h_step, df_tabla = metodo_trapecios(func_input, a_trap, b_trap, n_trap)
             if integral is not None:
-                st.subheader("Fórmulas")
-                st.latex(
-                    r"h = \frac{b - a}{n}"
-                )
-                st.latex(
-                    r"I \approx \frac{h}{2}\left[f(x_0) + 2f(x_1) + 2f(x_2) + \cdots + 2f(x_{n-1}) + f(x_n)\right]"
-                )
-                st.latex(
-                    r"|E_T| \leq \frac{(b-a)\,h^2}{12}\,\max_{\xi \in [a,b]}\left|f''(\xi)\right|"
-                )
-                with st.expander("📖 Notación"):
-                    st.markdown("""
+                if mostrar_formulas:
+                    st.subheader("Fórmulas")
+                    st.latex(
+                        r"h = \frac{b - a}{n}"
+                    )
+                    st.latex(
+                        r"I \approx \frac{h}{2}\left[f(x_0) + 2f(x_1) + 2f(x_2) + \cdots + 2f(x_{n-1}) + f(x_n)\right]"
+                    )
+                    st.latex(
+                        r"|E_T| \leq \frac{(b-a)\,h^2}{12}\,\max_{\xi \in [a,b]}\left|f''(\xi)\right|"
+                    )
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $a,\\, b$ | Límites inferior y superior del intervalo de integración |
@@ -735,21 +738,22 @@ with col2:
         elif metodo_sel == "Rectángulo Medio":
             integral, err_trunc, h_step, df_tabla = metodo_rectangulo_medio(func_input, a_rect, b_rect, n_rect)
             if integral is not None:
-                st.subheader("Fórmulas")
-                st.latex(
-                    r"h = \frac{b - a}{n}"
-                )
-                st.latex(
-                    r"x_{m_i} = \frac{x_i + x_{i+1}}{2}"
-                )
-                st.latex(
-                    r"I \approx h \sum_{i=0}^{n-1} f(x_{m_i})"
-                )
-                st.latex(
-                    r"|E_T| \leq \frac{(b-a)\,h^2}{24}\,\max_{\xi \in [a,b]}\left|f''(\xi)\right|"
-                )
-                with st.expander("📖 Notación"):
-                    st.markdown("""
+                if mostrar_formulas:
+                    st.subheader("Fórmulas")
+                    st.latex(
+                        r"h = \frac{b - a}{n}"
+                    )
+                    st.latex(
+                        r"x_{m_i} = \frac{x_i + x_{i+1}}{2}"
+                    )
+                    st.latex(
+                        r"I \approx h \sum_{i=0}^{n-1} f(x_{m_i})"
+                    )
+                    st.latex(
+                        r"|E_T| \leq \frac{(b-a)\,h^2}{24}\,\max_{\xi \in [a,b]}\left|f''(\xi)\right|"
+                    )
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $a,\\, b$ | Límites inferior y superior del intervalo de integración |

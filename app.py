@@ -272,16 +272,18 @@ def metodo_rectangulo_medio(f_str, a, b, n):
     f2_max = max(f2_vals) if f2_vals else 0.0
     error_trunc = abs((b - a) * h**2 * f2_max / 24)
 
-    # Tabla por nodo (puntos medios)
+    # Tabla por nodo (puntos medios e intervalos)
     tabla = []
     for k in range(n):
         fk = float(y_mid[k])
         tabla.append({
             "N": k+1,
-            "Xₙ (Pto. Medio)": round(float(x_mid[k]), 8),
-            "F(Xₙ)": round(fk, 8),
+            "Xₙ_inf": round(float(x_pts[k]), 8),
+            "Xₙ_sup": round(float(x_pts[k+1]), 8),
+            "Xₘ (Pto. Medio)": round(float(x_mid[k]), 8),
+            "F(Xₘ)": round(fk, 8),
             "Coef.": 1,
-            "Coef. × F(Xₙ)": round(1 * fk, 8),
+            "Coef. × F(Xₘ)": round(1 * fk, 8),
         })
     return integral, error_trunc, h, pd.DataFrame(tabla)
 

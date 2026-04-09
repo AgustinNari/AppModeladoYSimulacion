@@ -443,7 +443,7 @@ with col2:
                 col_r1, col_r2, col_r3 = st.columns(3)
                 col_r1.metric("Integral ≈", f"{integral:.8f}")
                 col_r2.metric("Paso h", f"{h_step:.6f}")
-                col_r3.metric("Error Trunc. |Eₜ|", f"{err_trunc:.4e}")
+                col_r3.metric("Error Trunc. |Eₜ|", fmt_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
                 # Gráfico con área sombreada y trapecios
                 x_plot = np.linspace(a_trap, b_trap, 300)

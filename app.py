@@ -207,6 +207,16 @@ with col2:
             st.latex(
                 r"L_i(x) = \prod_{\substack{j=0 \\ j \neq i}}^{n} \frac{x - x_j}{x_i - x_j}"
             )
+            with st.expander("📖 Notación"):
+                st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $P(x)$ | Polinomio interpolante de Lagrange |
+| $n$ | Grado del polinomio (número de puntos − 1) |
+| $x_i,\\, y_i$ | Nodos e imágenes conocidos |
+| $L_i(x)$ | $i$-ésimo polinomio base de Lagrange |
+| $x$ | Punto en el que se evalúa $P(x)$ |
+""")
             st.subheader("Resultado")
             st.latex(f"P(x) = {sp.latex(poly)}")
 
@@ -254,6 +264,18 @@ with col2:
             st.latex(
                 r"\text{Error de truncamiento: } O(h^2)"
             )
+            with st.expander("📖 Notación"):
+                st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $x_i$ | Punto interior donde se estima la derivada |
+| $x_{i-1},\\, x_{i+1}$ | Puntos vecinos anterior y siguiente |
+| $f(x_i)$ | Valor de la función en $x_i$ |
+| $h$ | Espaciado uniforme entre puntos: $h = x_{i+1} - x_i$ |
+| $f'(x_i)$ | Aproximación de la primera derivada en $x_i$ |
+| $f''(x_i)$ | Aproximación de la segunda derivada en $x_i$ |
+| $O(h^2)$ | El error es proporcional a $h^2$ (orden de precisión) |
+""")
             st.subheader("Resultado")
             df = metodo_diferencias_centrales(x_in_num, y_in_num)
             if df is not None: st.table(df)
@@ -272,6 +294,19 @@ with col2:
                 st.latex(
                     r"|E_T| \leq \frac{(b-a)\,h^4}{180}\,\max_{\xi \in [a,b]}\left|f^{(4)}(\xi)\right|"
                 )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $a,\\, b$ | Límites inferior y superior del intervalo de integración |
+| $n$ | Número de subintervalos (debe ser par) |
+| $h$ | Ancho de cada subintervalo: $h = (b-a)/n$ |
+| $x_0, x_1, \\ldots, x_n$ | Nodos equiespaciados: $x_k = a + k\\,h$ |
+| $f(x_k)$ | Valor de la función en el nodo $x_k$ |
+| $I$ | Valor aproximado de la integral $\\int_a^b f(x)\\,dx$ |
+| $E_T$ | Error de truncamiento de la fórmula compuesta |
+| $f^{(4)}(\\xi)$ | Cuarta derivada de $f$ en algún punto $\\xi \\in [a,b]$ |
+""")
                 st.subheader("Resultado")
                 col_r1, col_r2, col_r3 = st.columns(3)
                 col_r1.metric("Integral ≈", f"{integral:.8f}")
@@ -315,6 +350,16 @@ with col2:
                 st.latex(
                     r"\text{Criterio de cambio de signo: } f(a) \cdot f(b) < 0"
                 )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $a,\\, b$ | Extremos del intervalo activo en cada iteración |
+| $x_n$ | Punto medio del intervalo: aproximación a la raíz |
+| $x_{n-1}$ | Aproximación de la iteración anterior |
+| $f(a),\\, f(b)$ | Valores de $f$ en los extremos del intervalo |
+| Error (%) | Error relativo porcentual entre iteraciones sucesivas |
+""")
             else:  # Newton-Raphson
                 st.latex(
                     r"x_{n+1} = x_n - \frac{f(x_n)}{f'(x_n)}"
@@ -325,6 +370,17 @@ with col2:
                 st.latex(
                     r"\text{Error} = \left|\frac{x_{n+1} - x_n}{x_{n+1}}\right| \times 100\%"
                 )
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $x_n$ | Aproximación actual a la raíz |
+| $x_{n+1}$ | Nueva aproximación calculada en la iteración |
+| $f(x_n)$ | Valor de la función en $x_n$ |
+| $f'(x_n)$ | Derivada de $f$ en $x_n$ (calculada numéricamente) |
+| $h$ | Paso para la diferenciación numérica ($h = 10^{-5}$) |
+| Error (%) | Error relativo porcentual entre iteraciones sucesivas |
+""")
             st.subheader("Resultado")
             df, estado, raiz, err = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in) if metodo_sel == "Bisección" else metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
             if df is not None:

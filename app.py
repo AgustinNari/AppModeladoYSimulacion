@@ -106,7 +106,7 @@ def evaluar_f_array(f_str, x_arr, y_arr=None):
         if y_arr is None:
             for xv in np.atleast_1d(x_arr):
                 val = evaluar_f(f_str, xv)
-                res_list.append(val if val is not None else 0.0)
+                res_list.append(val if val is not None else np.nan)
         else:
             for xv, yv in zip(np.atleast_1d(x_arr), np.atleast_1d(y_arr)):
                 contexto_scalar = {
@@ -116,9 +116,9 @@ def evaluar_f_array(f_str, x_arr, y_arr=None):
                 }
                 try:
                     val = eval(f_proc, {"__builtins__": None}, contexto_scalar)
-                    res_list.append(float(val) if not (np.isnan(float(val)) or np.isinf(float(val))) else 0.0)
+                    res_list.append(float(val) if not (np.isnan(float(val)) or np.isinf(float(val))) else np.nan)
                 except:
-                    res_list.append(0.0)
+                    res_list.append(np.nan)
         return np.array(res_list)
 
 def calcular_derivada_robusta(f_str, x_val, h=1e-5):
@@ -384,15 +384,32 @@ def metodo_rectangulo_medio(f_str, a, b, n):
 
 # --- INTEGRACIÓN: MONTECARLO ---
 
-def metodo_montecarlo(f_str, a, b, n, conf_level=95.0):
-    x_rand = np.random.uniform(a, b, n)
+def metodo_montecarlo(f_str, a, b, n, conf_level=95.0, seed=None, antithetic=False):
+    if seed is not None:
+        np.random.seed(seed)
+        
+    if antithetic:
+        half_n = n // 2
+        x_half = np.random.uniform(a, b, half_n)
+        x_rand = np.concatenate([x_half, a + b - x_half])
+        if n % 2 != 0:
+            x_rand = np.append(x_rand, np.random.uniform(a, b, 1))
+    else:
+        x_rand = np.random.uniform(a, b, n)
+        
     y_eval = evaluar_f_array(f_str, x_rand)
     
     vol = (b - a)
-    integral = vol * np.mean(y_eval)
+    valid_mask = ~np.isnan(y_eval)
+    valid_n = np.sum(valid_mask)
+    if valid_n == 0:
+        return 0.0, 0.0, vol, 0.0, 0.0, pd.DataFrame(), x_rand, y_eval, n
+        
+    y_valid = y_eval[valid_mask]
+    integral = vol * np.mean(y_valid)
     
-    var = np.var(y_eval, ddof=1) if n > 1 else 0.0
-    std_error = vol * np.sqrt(var / n)
+    var = np.var(y_valid, ddof=1) if valid_n > 1 else 0.0
+    std_error = vol * np.sqrt(var / valid_n)
     
     alpha = 1 - (conf_level / 100.0)
     z = st_stats.norm.ppf(1 - alpha/2)
@@ -405,22 +422,43 @@ def metodo_montecarlo(f_str, a, b, n, conf_level=95.0):
         tabla.append({
             "Punto i": i+1,
             "x_i": round(x_rand[i], 6),
-            "f(x_i)": round(y_eval[i], 6) if y_eval[i] is not None else 0.0,
+            "f(x_i)": round(y_eval[i], 6) if not np.isnan(y_eval[i]) else "Indefinido",
         })
     df_tabla = pd.DataFrame(tabla)
     
-    return integral, std_error, vol, ic_lower, ic_upper, df_tabla, x_rand, y_eval
+    invalid_count = n - valid_n
+    return integral, std_error, vol, ic_lower, ic_upper, df_tabla, x_rand, y_eval, invalid_count
 
-def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0):
-    x_rand = np.random.uniform(a_x, b_x, n)
-    y_rand = np.random.uniform(a_y, b_y, n)
+def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0, seed=None, antithetic=False):
+    if seed is not None:
+        np.random.seed(seed)
+        
+    if antithetic:
+        half_n = n // 2
+        x_half = np.random.uniform(a_x, b_x, half_n)
+        y_half = np.random.uniform(a_y, b_y, half_n)
+        x_rand = np.concatenate([x_half, a_x + b_x - x_half])
+        y_rand = np.concatenate([y_half, a_y + b_y - y_half])
+        if n % 2 != 0:
+            x_rand = np.append(x_rand, np.random.uniform(a_x, b_x, 1))
+            y_rand = np.append(y_rand, np.random.uniform(a_y, b_y, 1))
+    else:
+        x_rand = np.random.uniform(a_x, b_x, n)
+        y_rand = np.random.uniform(a_y, b_y, n)
+        
     z_eval = evaluar_f_array(f_str, x_rand, y_rand)
     
     area = (b_x - a_x) * (b_y - a_y)
-    integral = area * np.mean(z_eval)
+    valid_mask = ~np.isnan(z_eval)
+    valid_n = np.sum(valid_mask)
+    if valid_n == 0:
+        return 0.0, 0.0, area, 0.0, 0.0, pd.DataFrame(), x_rand, y_rand, z_eval, n
+        
+    z_valid = z_eval[valid_mask]
+    integral = area * np.mean(z_valid)
     
-    var = np.var(z_eval, ddof=1) if n > 1 else 0.0
-    std_error = area * np.sqrt(var / n)
+    var = np.var(z_valid, ddof=1) if valid_n > 1 else 0.0
+    std_error = area * np.sqrt(var / valid_n)
     
     alpha = 1 - (conf_level / 100.0)
     z = st_stats.norm.ppf(1 - alpha/2)
@@ -434,11 +472,12 @@ def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0):
             "Punto i": i+1,
             "x_i": round(x_rand[i], 6),
             "y_i": round(y_rand[i], 6),
-            "f(x_i, y_i)": round(z_eval[i], 6) if z_eval[i] is not None else 0.0,
+            "f(x_i, y_i)": round(z_eval[i], 6) if not np.isnan(z_eval[i]) else "Indefinido",
         })
     df_tabla = pd.DataFrame(tabla)
     
-    return integral, std_error, area, ic_lower, ic_upper, df_tabla, x_rand, y_rand, z_eval
+    invalid_count = n - valid_n
+    return integral, std_error, area, ic_lower, ic_upper, df_tabla, x_rand, y_rand, z_eval, invalid_count
 
 
 # --- MÉTODOS DE RAÍCES ---
@@ -568,6 +607,12 @@ with col1:
         b_mc_str = st.text_input("Límite superior b", value="pi", help="Usar expressions: pi/2, sqrt(2)")
         n_mc = int(st.number_input("Cantidad de Puntos N", value=10000, step=1000))
         conf_mc = st.number_input("Nivel de Confianza (%)", value=95.0, min_value=1.0, max_value=99.9)
+        
+        col_m1, col_m2 = st.columns(2)
+        use_seed_mc = col_m1.checkbox("Fijar Semilla", value=True, key="smc1")
+        seed_mc = col_m2.number_input("Semilla", value=42, step=1, key="smc2") if use_seed_mc else None
+        antithetic_mc = st.checkbox("Variables Antitéticas", value=False, help="Técnica de reducción de varianza.", key="amc1")
+        
         try:
             a_mc = float(sp.sympify(a_mc_str).evalf())
             b_mc = float(sp.sympify(b_mc_str).evalf())
@@ -584,6 +629,12 @@ with col1:
         b_y_mc_str = col_by.text_input("Lím. sup. Y (d)", value="2")
         n_mc2 = int(st.number_input("Cantidad de Puntos N", value=10000, step=1000))
         conf_mc2 = st.number_input("Nivel de Confianza (%)", value=95.0, min_value=1.0, max_value=99.9)
+        
+        col_md1, col_md2 = st.columns(2)
+        use_seed_mc2 = col_md1.checkbox("Fijar Semilla", value=True, key="smcd1")
+        seed_mc2 = col_md2.number_input("Semilla", value=42, step=1, key="smcd2") if use_seed_mc2 else None
+        antithetic_mc2 = st.checkbox("Variables Antitéticas", value=False, help="Técnica de reducción de varianza.", key="amcd1")
+        
         try:
             a_x_mc = float(sp.sympify(a_x_mc_str).evalf())
             b_x_mc = float(sp.sympify(b_x_mc_str).evalf())
@@ -942,7 +993,11 @@ with col2:
                 st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
 
         elif metodo_sel == "Montecarlo":
-            integral, err_est, vol, ic_low, ic_up, df_tabla, x_r, y_r = metodo_montecarlo(func_input, a_mc, b_mc, n_mc, conf_mc)
+            integral, err_est, vol, ic_low, ic_up, df_tabla, x_r, y_r, invalid_count = metodo_montecarlo(
+                func_input, a_mc, b_mc, n_mc, conf_mc, seed=seed_mc, antithetic=antithetic_mc)
+            
+            if invalid_count > 0:
+                st.warning(f"⚠️ Se omitieron {invalid_count} muestras que resultaron en valores indefinidos en la función.")
             
             # --- CÁLCULO DE ERROR VERDADERO CON SCIPY ---
             def func_scipy(x):
@@ -989,15 +1044,22 @@ with col2:
                 st.plotly_chart(fig, use_container_width=True)
                 
             with tab2:
-                # Calculo de Convergencia Vectorizado
-                cum_mean = np.cumsum(y_r) / np.arange(1, n_mc + 1)
-                cum_integral = vol * cum_mean
+                # Calculo de Convergencia Vectorizado ignorando NaNs
+                valid_mask = ~np.isnan(y_r)
+                y_valid = y_r[valid_mask]
+                n_valid = len(y_valid)
                 
-                if n_mc > 1:
-                    cum_var = pd.Series(y_r).expanding().var(ddof=1).fillna(0).values
-                    cum_std_error = vol * np.sqrt(cum_var / np.arange(1, n_mc + 1))
+                if n_valid > 0:
+                    cum_mean = np.cumsum(y_valid) / np.arange(1, n_valid + 1)
+                    cum_integral = vol * cum_mean
+                    
+                    if n_valid > 1:
+                        cum_var = pd.Series(y_valid).expanding().var(ddof=1).fillna(0).values
+                        cum_std_error = vol * np.sqrt(cum_var / np.arange(1, n_valid + 1))
+                    else:
+                        cum_std_error = np.zeros(n_valid)
                 else:
-                    cum_std_error = np.zeros(n_mc)
+                    cum_integral, cum_std_error = np.zeros(0), np.zeros(0)
                 
                 alpha = 1 - (conf_mc / 100.0)
                 z_val = st_stats.norm.ppf(1 - alpha/2)
@@ -1005,10 +1067,10 @@ with col2:
                 
                 fig_conv = go.Figure()
                 
-                if n_mc > 5000:
-                    idx = np.unique(np.geomspace(1, n_mc, 1000).astype(int)) - 1
+                if n_valid > 5000:
+                    idx = np.unique(np.geomspace(1, n_valid, 1000).astype(int)) - 1
                 else:
-                    idx = np.arange(n_mc)
+                    idx = np.arange(n_valid)
                 
                 n_idx = idx + 1
                 
@@ -1037,7 +1099,11 @@ with col2:
                 st.plotly_chart(fig_hist, use_container_width=True)
 
         elif metodo_sel == "Montecarlo Doble":
-            integral, err_est, area_xy, ic_low, ic_up, df_tabla, x_r, y_r, z_r = metodo_montecarlo_doble(func_input, a_x_mc, b_x_mc, a_y_mc, b_y_mc, n_mc2, conf_mc2)
+            integral, err_est, area_xy, ic_low, ic_up, df_tabla, x_r, y_r, z_r, invalid_count = metodo_montecarlo_doble(
+                func_input, a_x_mc, b_x_mc, a_y_mc, b_y_mc, n_mc2, conf_mc2, seed=seed_mc2, antithetic=antithetic_mc2)
+            
+            if invalid_count > 0:
+                st.warning(f"⚠️ Se omitieron {invalid_count} muestras que resultaron en valores indefinidos en la función.")
             
             # --- CÁLCULO DE ERROR VERDADERO DOBLE CON SCIPY ---
             def func_scipy_dbl(y, x):
@@ -1084,24 +1150,31 @@ with col2:
                 st.plotly_chart(fig, use_container_width=True)
 
             with tab2:
-                cum_mean = np.cumsum(z_r) / np.arange(1, n_mc2 + 1)
-                cum_integral = area_xy * cum_mean
+                valid_mask = ~np.isnan(z_r)
+                z_valid = z_r[valid_mask]
+                n_valid = len(z_valid)
                 
-                if n_mc2 > 1:
-                    cum_var = pd.Series(z_r).expanding().var(ddof=1).fillna(0).values
-                    cum_std_error = area_xy * np.sqrt(cum_var / np.arange(1, n_mc2 + 1))
+                if n_valid > 0:
+                    cum_mean = np.cumsum(z_valid) / np.arange(1, n_valid + 1)
+                    cum_integral = area_xy * cum_mean
+                    
+                    if n_valid > 1:
+                        cum_var = pd.Series(z_valid).expanding().var(ddof=1).fillna(0).values
+                        cum_std_error = area_xy * np.sqrt(cum_var / np.arange(1, n_valid + 1))
+                    else:
+                        cum_std_error = np.zeros(n_valid)
                 else:
-                    cum_std_error = np.zeros(n_mc2)
+                    cum_integral, cum_std_error = np.zeros(0), np.zeros(0)
                 
                 alpha = 1 - (conf_mc2 / 100.0)
                 z_val = st_stats.norm.ppf(1 - alpha/2)
                 margin = z_val * cum_std_error
                 
                 fig_conv = go.Figure()
-                if n_mc2 > 5000:
-                    idx = np.unique(np.geomspace(1, n_mc2, 1000).astype(int)) - 1
+                if n_valid > 5000:
+                    idx = np.unique(np.geomspace(1, n_valid, 1000).astype(int)) - 1
                 else:
-                    idx = np.arange(n_mc2)
+                    idx = np.arange(n_valid)
                 n_idx = idx + 1
                 
                 if exact_val is not None:

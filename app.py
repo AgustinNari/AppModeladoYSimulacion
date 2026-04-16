@@ -64,7 +64,7 @@ components.html(
 def evaluar_f(f_str, x_val):
     """Evalúa funciones para cálculos numéricos rápidos (gráficos y raíces)"""
     try:
-        f_proc = f_str.replace("^", "**").replace("sen", "sin")
+        f_proc = f_str.replace("^", "**").replace("sen", "sin").replace("ln", "log")
         f_proc = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_proc)
         contexto = {
             "np": np, "x": x_val, "sin": np.sin, "cos": np.cos, 
@@ -89,7 +89,7 @@ def evaluar_f(f_str, x_val):
 def evaluar_f_array(f_str, x_arr, y_arr=None):
     """Evalúa funciones con arrays de numpy de forma segura"""
     try:
-        f_proc = f_str.replace("^", "**").replace("sen", "sin")
+        f_proc = f_str.replace("^", "**").replace("sen", "sin").replace("ln", "log")
         f_proc = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_proc)
         contexto = {
             "np": np, "x": x_arr, "y": y_arr, "sin": np.sin, "cos": np.cos, 

@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import re
 import sympy as sp
+import scipy.stats as st_stats
 import streamlit.components.v1 as components
 
 # Configuración de la página
@@ -83,6 +84,41 @@ def evaluar_f(f_str, x_val):
             return float(res_lim)
         except:
             return None
+
+def evaluar_f_array(f_str, x_arr, y_arr=None):
+    """Evalúa funciones con arrays de numpy de forma segura"""
+    try:
+        f_proc = f_str.replace("^", "**").replace("sen", "sin")
+        f_proc = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_proc)
+        contexto = {
+            "np": np, "x": x_arr, "y": y_arr, "sin": np.sin, "cos": np.cos, 
+            "tan": np.tan, "exp": np.exp, "log": np.log, 
+            "sqrt": np.sqrt, "pi": np.pi, "e": np.e, "sp": sp
+        }
+        res = eval(f_proc, {"__builtins__": None}, contexto)
+        if isinstance(res, (int, float)):
+            res = np.full(np.shape(x_arr), res)
+        return np.asarray(res, dtype=float)
+    except Exception:
+        # Fallback iterativo
+        res_list = []
+        if y_arr is None:
+            for xv in np.atleast_1d(x_arr):
+                val = evaluar_f(f_str, xv)
+                res_list.append(val if val is not None else 0.0)
+        else:
+            for xv, yv in zip(np.atleast_1d(x_arr), np.atleast_1d(y_arr)):
+                contexto_scalar = {
+                    "np": np, "x": xv, "y": yv, "sin": np.sin, "cos": np.cos, 
+                    "tan": np.tan, "exp": np.exp, "log": np.log, 
+                    "sqrt": np.sqrt, "pi": np.pi, "e": np.e
+                }
+                try:
+                    val = eval(f_proc, {"__builtins__": None}, contexto_scalar)
+                    res_list.append(float(val) if not (np.isnan(float(val)) or np.isinf(float(val))) else 0.0)
+                except:
+                    res_list.append(0.0)
+        return np.array(res_list)
 
 def calcular_derivada_robusta(f_str, x_val, h=1e-5):
     f = lambda x: evaluar_f(f_str, x)
@@ -345,6 +381,65 @@ def metodo_rectangulo_medio(f_str, a, b, n):
     return integral, error_trunc, h, pd.DataFrame(tabla)
 
 
+# --- INTEGRACIÓN: MONTECARLO ---
+
+def metodo_montecarlo(f_str, a, b, n, conf_level=95.0):
+    x_rand = np.random.uniform(a, b, n)
+    y_eval = evaluar_f_array(f_str, x_rand)
+    
+    vol = (b - a)
+    integral = vol * np.mean(y_eval)
+    
+    var = np.var(y_eval, ddof=1) if n > 1 else 0.0
+    std_error = vol * np.sqrt(var / n)
+    
+    alpha = 1 - (conf_level / 100.0)
+    z = st_stats.norm.ppf(1 - alpha/2)
+    margin = z * std_error
+    ic_lower = integral - margin
+    ic_upper = integral + margin
+    
+    tabla = []
+    for i in range(min(10, n)):
+        tabla.append({
+            "Punto i": i+1,
+            "x_i": round(x_rand[i], 6),
+            "f(x_i)": round(y_eval[i], 6) if y_eval[i] is not None else 0.0,
+        })
+    df_tabla = pd.DataFrame(tabla)
+    
+    return integral, std_error, vol, ic_lower, ic_upper, df_tabla, x_rand, y_eval
+
+def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0):
+    x_rand = np.random.uniform(a_x, b_x, n)
+    y_rand = np.random.uniform(a_y, b_y, n)
+    z_eval = evaluar_f_array(f_str, x_rand, y_rand)
+    
+    area = (b_x - a_x) * (b_y - a_y)
+    integral = area * np.mean(z_eval)
+    
+    var = np.var(z_eval, ddof=1) if n > 1 else 0.0
+    std_error = area * np.sqrt(var / n)
+    
+    alpha = 1 - (conf_level / 100.0)
+    z = st_stats.norm.ppf(1 - alpha/2)
+    margin = z * std_error
+    ic_lower = integral - margin
+    ic_upper = integral + margin
+    
+    tabla = []
+    for i in range(min(10, n)):
+        tabla.append({
+            "Punto i": i+1,
+            "x_i": round(x_rand[i], 6),
+            "y_i": round(y_rand[i], 6),
+            "f(x_i, y_i)": round(z_eval[i], 6) if z_eval[i] is not None else 0.0,
+        })
+    df_tabla = pd.DataFrame(tabla)
+    
+    return integral, std_error, area, ic_lower, ic_upper, df_tabla, x_rand, y_rand, z_eval
+
+
 # --- MÉTODOS DE RAÍCES ---
 
 def formatear_error(valor):
@@ -395,7 +490,7 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
 st.sidebar.header("Configuración")
 mostrar_formulas = st.sidebar.checkbox("Visor Fórmulas (Ctrl+Shift+F)", value=False)
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
-    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8"])
+    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8", "Montecarlo", "Montecarlo Doble"])
 
 col1, col2 = st.columns([1, 2])
 
@@ -466,6 +561,36 @@ with col1:
         except:
             st.error("Límites inválidos. Usá expresiones como: pi/2, sqrt(2), 1.5, 2*pi")
             a_rect, b_rect = 0.0, 1.0
+    elif metodo_sel == "Montecarlo":
+        func_input = st.text_input("f(x):", value="sin(x)")
+        a_mc_str = st.text_input("Límite inferior a", value="0", help="Usar expresiones: pi/2, sqrt(2)")
+        b_mc_str = st.text_input("Límite superior b", value="pi", help="Usar expressions: pi/2, sqrt(2)")
+        n_mc = int(st.number_input("Cantidad de Puntos N", value=10000, step=1000))
+        conf_mc = st.number_input("Nivel de Confianza (%)", value=95.0, min_value=1.0, max_value=99.9)
+        try:
+            a_mc = float(sp.sympify(a_mc_str).evalf())
+            b_mc = float(sp.sympify(b_mc_str).evalf())
+        except:
+            st.error("Límites inválidos.")
+            a_mc, b_mc = 0.0, 3.14159
+    elif metodo_sel == "Montecarlo Doble":
+        func_input = st.text_input("f(x, y):", value="x**2 + y**2")
+        col_ax, col_bx = st.columns(2)
+        a_x_mc_str = col_ax.text_input("Lím. inf. X (a)", value="0")
+        b_x_mc_str = col_bx.text_input("Lím. sup. X (b)", value="1")
+        col_ay, col_by = st.columns(2)
+        a_y_mc_str = col_ay.text_input("Lím. inf. Y (c)", value="0")
+        b_y_mc_str = col_by.text_input("Lím. sup. Y (d)", value="2")
+        n_mc2 = int(st.number_input("Cantidad de Puntos N", value=10000, step=1000))
+        conf_mc2 = st.number_input("Nivel de Confianza (%)", value=95.0, min_value=1.0, max_value=99.9)
+        try:
+            a_x_mc = float(sp.sympify(a_x_mc_str).evalf())
+            b_x_mc = float(sp.sympify(b_x_mc_str).evalf())
+            a_y_mc = float(sp.sympify(a_y_mc_str).evalf())
+            b_y_mc = float(sp.sympify(b_y_mc_str).evalf())
+        except:
+            st.error("Límites inválidos.")
+            a_x_mc, b_x_mc, a_y_mc, b_y_mc = 0.0, 1.0, 0.0, 2.0
     else:
         func_input = st.text_input("f(x):", value="x**2 - 2")
         if metodo_sel == "Bisección":
@@ -814,6 +939,63 @@ with col2:
                     st.plotly_chart(fig, use_container_width=True)
             else:
                 st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
+
+        elif metodo_sel == "Montecarlo":
+            integral, err_est, vol, ic_low, ic_up, df_tabla, x_r, y_r = metodo_montecarlo(func_input, a_mc, b_mc, n_mc, conf_mc)
+            if mostrar_formulas:
+                st.subheader("Fórmulas")
+                st.latex(r"I \approx V \cdot \frac{1}{N}\sum_{i=1}^{N} f(x_i)")
+                st.latex(r"\text{Var} = \frac{1}{N-1}\sum_{i=1}^{N} \left(f(x_i) - \bar{f}\right)^2")
+                st.latex(r"EE = V \cdot \sqrt{\frac{\text{Var}}{N}}")
+                st.latex(r"IC = I \pm z_{\alpha/2} EE")
+            st.subheader("Resultado")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Integral ≈", f"{integral:.6f}")
+            c2.metric("Error Estándar (EE)", f"{err_est:.6e}")
+            c3.metric(f"IC {conf_mc}%", f"[{ic_low:.4f}, {ic_up:.4f}]")
+            st.write(f"**Área S (Volumen):** {vol:.4f}")
+            st.dataframe(df_tabla, use_container_width=True)
+            
+            fig = go.Figure()
+            x_plot = np.linspace(a_mc, b_mc, 300)
+            # Evaluate using array for speed
+            y_plot = evaluar_f_array(func_input, x_plot)
+            fig.add_trace(go.Scatter(x=x_plot, y=y_plot, name="f(x)", line=dict(color='#86e012')))
+            
+            # Submuestreo para graficar rápido (max 1000 ptos)
+            n_plot = min(n_mc, 1000)
+            fig.add_trace(go.Scatter(x=x_r[:n_plot], y=y_r[:n_plot], mode='markers', name="Muestras", marker=dict(size=4, color='rgba(255,255,255,0.4)')))
+            fig.update_layout(template="plotly_dark", title=f"Montecarlo — ∫f(x)dx ≈ {integral:.6f}")
+            st.plotly_chart(fig, use_container_width=True)
+
+        elif metodo_sel == "Montecarlo Doble":
+            integral, err_est, area_xy, ic_low, ic_up, df_tabla, x_r, y_r, z_r = metodo_montecarlo_doble(func_input, a_x_mc, b_x_mc, a_y_mc, b_y_mc, n_mc2, conf_mc2)
+            if mostrar_formulas:
+                st.subheader("Fórmulas")
+                st.latex(r"I \approx S \cdot \frac{1}{N}\sum_{i=1}^{N} f(x_i, y_i)")
+                st.latex(r"\text{Var} = \frac{1}{N-1}\sum_{i=1}^{N} \left(f(x_i, y_i) - \bar{f}\right)^2")
+                st.latex(r"EE = S \cdot \sqrt{\frac{\text{Var}}{N}}")
+                st.latex(r"IC = I \pm z_{\alpha/2} EE")
+            st.subheader("Resultado")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Integral ≈", f"{integral:.6f}")
+            c2.metric("Error Estándar (EE)", f"{err_est:.6e}")
+            c3.metric(f"IC {conf_mc2}%", f"[{ic_low:.4f}, {ic_up:.4f}]")
+            st.write(f"**Área Integración (S):** {area_xy:.4f}")
+            st.dataframe(df_tabla, use_container_width=True)
+            
+            fig = go.Figure()
+            # Malla para superficie
+            x_m = np.linspace(a_x_mc, b_x_mc, 40)
+            y_m = np.linspace(a_y_mc, b_y_mc, 40)
+            X, Y = np.meshgrid(x_m, y_m)
+            Z = evaluar_f_array(func_input, X.ravel(), Y.ravel()).reshape(X.shape)
+            fig.add_trace(go.Surface(x=X, y=Y, z=Z, colorscale='Viridis', opacity=0.8, name="f(x,y)"))
+            
+            n_plot = min(n_mc2, 500)
+            fig.add_trace(go.Scatter3d(x=x_r[:n_plot], y=y_r[:n_plot], z=z_r[:n_plot], mode='markers', name="Muestras", marker=dict(size=3, color='red')))
+            fig.update_layout(template="plotly_dark", title=f"Montecarlo Doble — ∬f(x,y)dxdy ≈ {integral:.6f}")
+            st.plotly_chart(fig, use_container_width=True)
 
         else: # Raíces
             if mostrar_formulas:

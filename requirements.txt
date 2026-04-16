@@ -3,3 +3,4 @@ plotly
 pandas
 sympy
 derivative
+scipy

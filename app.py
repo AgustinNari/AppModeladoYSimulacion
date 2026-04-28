@@ -527,6 +527,56 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
         x_n = x_next
     return pd.DataFrame(history), "limite", x_n, err
 
+# --- PUNTO FIJO Y AITKEN ---
+
+def metodo_punto_fijo_aitken(g_str, x0, tol, max_iter):
+    """Iteración de Punto Fijo con aceleración de Aitken (Δ²)."""
+    history = []
+    xs = [x0]  # secuencia de punto fijo simple
+
+    for i in range(max_iter):
+        gx = evaluar_f(g_str, xs[-1])
+        if gx is None:
+            return pd.DataFrame(history), "error_eval", xs[-1], 100.0
+
+        xs.append(gx)
+
+        # Calcular x_hat de Aitken cuando tengamos 3 valores consecutivos
+        x_hat = None
+        error_pct = None
+        if len(xs) >= 3:
+            xn   = xs[-3]
+            xn1  = xs[-2]
+            xn2  = xs[-1]
+            denom = xn2 - 2 * xn1 + xn
+            if abs(denom) > 1e-15:
+                x_hat = xn - (xn1 - xn) ** 2 / denom
+                if abs(x_hat) > 1e-12:
+                    error_pct = abs((x_hat - xn) / x_hat) * 100
+                else:
+                    error_pct = 0.0
+            else:
+                x_hat = None  # División por cero — no se puede calcular
+                error_pct = None
+
+        row = {
+            "n": i,
+            "xn": xs[-2],
+            "g(xn)": gx,
+            "x_hat": x_hat if x_hat is not None else "",
+            "Error %": error_pct if error_pct is not None else "",
+        }
+        history.append(row)
+
+        # Criterio de convergencia sobre x_hat
+        if error_pct is not None and error_pct < tol:
+            return pd.DataFrame(history), "convergencia", x_hat, error_pct
+
+    ultimo_xhat = x_hat if x_hat is not None else xs[-1]
+    ultimo_err  = error_pct if error_pct is not None else 100.0
+    return pd.DataFrame(history), "limite", ultimo_xhat, ultimo_err
+
+
 # --- RUNGE-KUTTA: EVALUADOR DE EDO f(x, y) ---
 
 def evaluar_edo(f_str, x_val, y_val):
@@ -707,7 +757,7 @@ precision = st.sidebar.slider("Precisión Decimal", 1, 12, 6)
 fmt = f".{precision}f"
 
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
-    ["Bisección", "Newton-Raphson", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8", "Montecarlo", "Montecarlo Doble", "Runge-Kutta"])
+    ["Bisección", "Newton-Raphson", "Punto Fijo y Aitken", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8", "Montecarlo", "Montecarlo Doble", "Runge-Kutta"])
 
 col1, col2 = st.columns([1, 2])
 
@@ -820,6 +870,11 @@ with col1:
         except:
             st.error("Límites inválidos.")
             a_x_mc, b_x_mc, a_y_mc, b_y_mc = 0.0, 1.0, 0.0, 2.0
+    elif metodo_sel == "Punto Fijo y Aitken":
+        func_input = st.text_input("g(x):", value="cos(x)", help="Función de iteración de punto fijo. Ej: cos(x), (x + 2/x)/2, sqrt(2 + x)")
+        x0_pf = st.number_input("x₀ (valor inicial)", value=1.0, format="%.6f")
+        tol_pf = st.number_input("Tolerancia (%)", value=0.001, format="%.6f")
+        iter_pf = st.slider("Max Iteraciones", 5, 200, 50)
     elif metodo_sel == "Runge-Kutta":
         rk_tipo = st.radio("Tipo de EDO", ["EDO Simple", "Sistema de 2 EDOs"], horizontal=True)
         if rk_tipo == "EDO Simple":
@@ -1597,6 +1652,73 @@ with col2:
                         title="Retrato de Fase (y₁ vs y₂)",
                         xaxis_title="y₁", yaxis_title="y₂")
                     st.plotly_chart(fig_phase, use_container_width=True)
+
+        elif metodo_sel == "Punto Fijo y Aitken":
+            if mostrar_formulas:
+                st.subheader("Fórmulas")
+                st.latex(r"x_{n+1} = g(x_n)")
+                st.latex(r"\hat{x}_n = x_n - \frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}")
+                st.latex(r"\text{Error} = \left|\frac{\hat{x}_n - x_n}{\hat{x}_n}\right| \times 100\%")
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $g(x)$ | Función de iteración de punto fijo |
+| $x_n$ | Aproximación actual en la iteración $n$ |
+| $x_{n+1}$ | Siguiente valor: $g(x_n)$ |
+| $\\hat{x}_n$ | Valor acelerado de Aitken (Δ²) |
+| Error (%) | Error relativo porcentual basado en $\\hat{x}_n$ |
+""")
+
+            st.subheader("Resultado")
+            df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo_aitken(func_input, x0_pf, tol_pf, iter_pf)
+
+            if df_pf is not None and len(df_pf) > 0:
+                if estado_pf == "convergencia":
+                    st.success(f"✅ Convergencia alcanzada — Punto fijo ≈ {raiz_pf:{fmt}}")
+                elif estado_pf == "error_eval":
+                    st.error("❌ Error al evaluar g(x). Verificá la función ingresada.")
+                else:
+                    st.warning(f"⚠️ Máximo de iteraciones alcanzado. Última estimación ≈ {raiz_pf:{fmt}}")
+
+                col_r1, col_r2, col_r3 = st.columns(3)
+                col_r1.metric("Punto Fijo ≈", f"{raiz_pf:{fmt}}")
+                col_r2.metric("Iteraciones", len(df_pf))
+                col_r3.metric("Error Final (%)", formatear_error(err_pf) if err_pf is not None else "N/A")
+
+                st.dataframe(df_pf, use_container_width=True)
+
+                # --- GRÁFICO: convergencia punto fijo vs Aitken ---
+                xn_vals = df_pf["xn"].tolist()
+                xhat_vals = [v if v != "" else None for v in df_pf["x_hat"].tolist()]
+                n_vals = df_pf["n"].tolist()
+
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=n_vals, y=xn_vals, mode='lines+markers',
+                    name='xₙ (Punto Fijo)', line=dict(color='#00cfcc', width=2),
+                    marker=dict(size=6)
+                ))
+
+                # Solo trazar x_hat donde existe
+                xhat_n = [n for n, v in zip(n_vals, xhat_vals) if v is not None]
+                xhat_y = [v for v in xhat_vals if v is not None]
+                if xhat_y:
+                    fig.add_trace(go.Scatter(
+                        x=xhat_n, y=xhat_y, mode='lines+markers',
+                        name='x̂ₙ (Aitken)', line=dict(color='#e03ce6', width=2, dash='dash'),
+                        marker=dict(size=7, symbol='diamond')
+                    ))
+
+                fig.update_layout(
+                    template="plotly_dark",
+                    title=f"Convergencia — Punto Fijo vs Aitken (g(x) = {func_input})",
+                    xaxis_title="Iteración n",
+                    yaxis_title="Valor"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.error("No se pudo calcular. Verificá la función g(x) y el valor inicial.")
 
         else: # Raíces
             if mostrar_formulas:

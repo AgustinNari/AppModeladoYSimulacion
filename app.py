@@ -121,6 +121,43 @@ def evaluar_f_array(f_str, x_arr, y_arr=None):
                     res_list.append(np.nan)
         return np.array(res_list)
 
+def evaluar_f_con_indeterminacion(f_str, x_val):
+    """Evalúa la función, detectando indeterminaciones y resolviendo por límite."""
+    f_proc = f_str.replace("^", "**").replace("sen", "sin").replace("ln", "log")
+    f_proc = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_proc)
+    contexto = {
+        "np": np, "x": x_val, "sin": np.sin, "cos": np.cos, 
+        "tan": np.tan, "exp": np.exp, "log": np.log, "log10": np.log10,
+        "sqrt": np.sqrt, "pi": np.pi, "e": np.e
+    }
+    es_indet = False
+    try:
+        with np.errstate(divide='raise', invalid='raise'):
+            res = eval(f_proc, {"__builtins__": None}, contexto)
+        if np.isnan(float(res)) or np.isinf(float(res)):
+            es_indet = True
+    except Exception:
+        es_indet = True
+
+    if es_indet:
+        try:
+            x_sym = sp.Symbol('x')
+            f_sym = sp.sympify(f_str.replace("^", "**").replace("sen", "sin").replace("ln", "log"))
+            limite = sp.limit(f_sym, x_sym, x_val)
+            if limite.is_real:
+                return float(limite), True
+        except:
+            pass
+        try:
+            contexto["x"] = x_val + 1e-12
+            res_lim = eval(f_proc, {"__builtins__": None}, contexto)
+            if not (np.isnan(float(res_lim)) or np.isinf(float(res_lim))):
+                return float(res_lim), True
+        except:
+            pass
+        return None, True
+    return float(res), False
+
 def calcular_derivada_robusta(f_str, x_val, h=1e-5):
     f = lambda x: evaluar_f(f_str, x)
     val_plus2 = f(x_val + 2*h)
@@ -179,9 +216,16 @@ def metodo_simpson_13(f_str, a, b, n, xi_punto=None):
         n += 1
     h = (b - a) / n
     x_pts = np.linspace(a, b, n + 1)
-    y_pts = np.array([evaluar_f(f_str, xi) for xi in x_pts])
-    if any(v is None for v in y_pts):
-        return None, None, None, None
+    y_pts_list = []
+    indets = []
+    for xi in x_pts:
+        val, is_indet = evaluar_f_con_indeterminacion(f_str, xi)
+        if val is None:
+            return None, None, None, None, None, None
+        if is_indet:
+            indets.append((xi, val))
+        y_pts_list.append(val)
+    y_pts = np.array(y_pts_list)
 
     # Suma compuesta Simpson 1/3
     suma = y_pts[0] + y_pts[-1]
@@ -225,7 +269,7 @@ def metodo_simpson_13(f_str, a, b, n, xi_punto=None):
             "Coef.": coef,
             "Coef. × F(Xₙ)": round(coef * fk, 8),
         })
-    return integral, error_trunc, h, pd.DataFrame(tabla)
+    return integral, error_trunc, h, pd.DataFrame(tabla), indets, y_pts_list
 
 
 # --- INTEGRACIÓN: SIMPSON 3/8 ---
@@ -236,9 +280,16 @@ def metodo_simpson_38(f_str, a, b, n, a_str="", b_str="", xi_punto=None):
         n += (3 - (n % 3))
     h = (b - a) / n
     x_pts = np.linspace(a, b, n + 1)
-    y_pts = np.array([evaluar_f(f_str, xi) for xi in x_pts])
-    if any(v is None for v in y_pts):
-        return None, None, None, None
+    y_pts_list = []
+    indets = []
+    for xi in x_pts:
+        val, is_indet = evaluar_f_con_indeterminacion(f_str, xi)
+        if val is None:
+            return None, None, None, None, None, None
+        if is_indet:
+            indets.append((xi, val))
+        y_pts_list.append(val)
+    y_pts = np.array(y_pts_list)
 
     # Suma compuesta Simpson 3/8
     suma = y_pts[0] + y_pts[-1]
@@ -312,7 +363,7 @@ def metodo_simpson_38(f_str, a, b, n, a_str="", b_str="", xi_punto=None):
             "Coef.": coef,
             "Coef. × F(Xₙ)": round(coef * fk, 8),
         })
-    return integral, error_trunc, h, pd.DataFrame(tabla)
+    return integral, error_trunc, h, pd.DataFrame(tabla), indets, y_pts_list
 
 
 # --- INTEGRACIÓN: TRAPECIOS ---
@@ -321,9 +372,16 @@ def metodo_trapecios(f_str, a, b, n, xi_punto=None):
     """Regla de Trapecios compuesta con n subintervalos."""
     h = (b - a) / n
     x_pts = np.linspace(a, b, n + 1)
-    y_pts = np.array([evaluar_f(f_str, xi) for xi in x_pts])
-    if any(v is None for v in y_pts):
-        return None, None, None, None
+    y_pts_list = []
+    indets = []
+    for xi in x_pts:
+        val, is_indet = evaluar_f_con_indeterminacion(f_str, xi)
+        if val is None:
+            return None, None, None, None, None, None
+        if is_indet:
+            indets.append((xi, val))
+        y_pts_list.append(val)
+    y_pts = np.array(y_pts_list)
 
     # Suma compuesta: extremos x1, interiores x2
     suma = y_pts[0] + y_pts[-1] + 2 * np.sum(y_pts[1:-1])
@@ -359,7 +417,7 @@ def metodo_trapecios(f_str, a, b, n, xi_punto=None):
             "Coef.": coef,
             "Coef. × F(Xₙ)": round(coef * fk, 8),
         })
-    return integral, error_trunc, h, pd.DataFrame(tabla)
+    return integral, error_trunc, h, pd.DataFrame(tabla), indets, y_pts_list
 
 
 # --- INTEGRACIÓN: RECTÁNGULO MEDIO ---
@@ -1243,8 +1301,9 @@ with col2:
             else: st.error("Se necesitan al menos 3 puntos.")
 
         elif metodo_sel == "Simpson 1/3":
-            integral, err_trunc, h_step, df_tabla = metodo_simpson_13(func_input, a_simp, b_simp, n_simp, xi_punto=xi_val_13)
-            if integral is not None:
+            res_simp = metodo_simpson_13(func_input, a_simp, b_simp, n_simp, xi_punto=xi_val_13)
+            if res_simp[0] is not None:
+                integral, err_trunc, h_step, df_tabla, indets, _y_s13 = res_simp
                 if mostrar_formulas:
                     st.subheader("Fórmulas")
                     st.latex(
@@ -1275,13 +1334,17 @@ with col2:
                 col_r2.metric("Paso h", f"{h_step:.6f}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
+                if indets:
+                    for xi, val in indets:
+                        st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     st.code(f"h = (b - a) / n = ({b_simp} - {a_simp}) / {n_simp} = {h_step}", language="text")
                     _x_s13 = np.linspace(a_simp, b_simp, n_simp + 1)
-                    _y_s13 = [evaluar_f(func_input, xi) for xi in _x_s13]
                     _terms = []
                     _lines = "Nodos y evaluaciones:\n"
+                    if indets:
+                        _lines += "(Se aplicó cálculo de límites en los puntos de indeterminación)\n"
                     for _k in range(n_simp + 1):
                         if _k == 0 or _k == n_simp:
                             _c = 1
@@ -1335,8 +1398,9 @@ with col2:
                 st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
 
         elif metodo_sel == "Simpson 3/8":
-            integral, err_trunc, h_step, df_tabla = metodo_simpson_38(func_input, a_simp38, b_simp38, n_simp38, a_simp38_str, b_simp38_str, xi_punto=xi_val_38)
-            if integral is not None:
+            res_simp38 = metodo_simpson_38(func_input, a_simp38, b_simp38, n_simp38, a_simp38_str, b_simp38_str, xi_punto=xi_val_38)
+            if res_simp38[0] is not None:
+                integral, err_trunc, h_step, df_tabla, indets, _y_s38 = res_simp38
                 if mostrar_formulas:
                     st.subheader("Fórmulas")
                     st.latex(
@@ -1367,13 +1431,17 @@ with col2:
                 col_r2.metric("Paso h", f"{h_step:.6f}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
+                if indets:
+                    for xi, val in indets:
+                        st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     st.code(f"h = (b - a) / n = ({b_simp38} - {a_simp38}) / {n_simp38} = {h_step}", language="text")
                     _x_s38 = np.linspace(a_simp38, b_simp38, n_simp38 + 1)
-                    _y_s38 = [evaluar_f(func_input, xi) for xi in _x_s38]
                     _terms = []
                     _lines = "Nodos y evaluaciones:\n"
+                    if indets:
+                        _lines += "(Se aplicó cálculo de límites en los puntos de indeterminación)\n"
                     for _k in range(n_simp38 + 1):
                         if _k == 0 or _k == n_simp38:
                             _c = 1
@@ -1427,8 +1495,9 @@ with col2:
                 st.error("No se pudo evaluar f(x) en el intervalo. Verificá la función.")
 
         elif metodo_sel == "Trapecios":
-            integral, err_trunc, h_step, df_tabla = metodo_trapecios(func_input, a_trap, b_trap, n_trap, xi_punto=xi_val_trap)
-            if integral is not None:
+            res_trap = metodo_trapecios(func_input, a_trap, b_trap, n_trap, xi_punto=xi_val_trap)
+            if res_trap[0] is not None:
+                integral, err_trunc, h_step, df_tabla, indets, _y_tr = res_trap
                 if mostrar_formulas:
                     st.subheader("Fórmulas")
                     st.latex(
@@ -1459,13 +1528,17 @@ with col2:
                 col_r2.metric("Paso h", f"{h_step:.6f}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
+                if indets:
+                    for xi, val in indets:
+                        st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     st.code(f"h = (b - a) / n = ({b_trap} - {a_trap}) / {n_trap} = {h_step}", language="text")
                     _x_tr = np.linspace(a_trap, b_trap, n_trap + 1)
-                    _y_tr = [evaluar_f(func_input, xi) for xi in _x_tr]
                     _terms = []
                     _lines = "Nodos y evaluaciones:\n"
+                    if indets:
+                        _lines += "(Se aplicó cálculo de límites en los puntos de indeterminación)\n"
                     for _k in range(n_trap + 1):
                         _c = 1 if (_k == 0 or _k == n_trap) else 2
                         _lines += f"  x_{_k} = {_x_tr[_k]:{fmt}},  f(x_{_k}) = {_y_tr[_k]:{fmt}},  coef = {_c}\n"

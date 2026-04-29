@@ -1689,6 +1689,103 @@ with col2:
 
                 st.dataframe(df_rk, use_container_width=True)
 
+                # --- DESARROLLO PASO A PASO (REEMPLAZO TEXTUAL) ---
+                with st.expander("📋 Desarrollo paso a paso (para copiar al examen)", expanded=False):
+                    # Recalcular paso a paso con formato textual
+                    _x, _y = rk_x0, rk_y0
+                    for _i in range(rk_n):
+                        st.markdown(f"### Paso {_i} → {_i+1}")
+                        st.markdown(f"**Datos:** $x_{{{_i}}} = {_x:{fmt}}$, $y_{{{_i}}} = {_y:{fmt}}$, $h = {rk_h}$")
+
+                        if "Euler" in rk_orden:
+                            _fval = evaluar_edo(func_input, _x, _y)
+                            if _fval is None:
+                                st.error(f"No se pudo evaluar f({_x}, {_y})")
+                                break
+                            _y_next = _y + rk_h * _fval
+                            bloque = (
+                                f"f(x_{_i}, y_{_i}) = f({_x:{fmt}}, {_y:{fmt}}) = {_fval:{fmt}}\n\n"
+                                f"y_{{{_i+1}}} = y_{_i} + h · f(x_{_i}, y_{_i})\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h} · {_fval:{fmt}}\n"
+                                f"y_{{{_i+1}}} = {_y_next:{fmt}}"
+                            )
+                            st.code(bloque, language="text")
+                            _y = _y_next
+                            _x = _x + rk_h
+
+                        elif "RK2" in rk_orden:
+                            if rk_variante == "Heun":
+                                _a2, _b1, _b2, _p1 = 1.0, 0.5, 0.5, 1.0
+                            elif rk_variante == "Punto Medio":
+                                _a2, _b1, _b2, _p1 = 0.5, 0.0, 1.0, 0.5
+                            else:
+                                _a2, _b1, _b2, _p1 = 2/3, 0.25, 0.75, 2/3
+                            _k1 = evaluar_edo(func_input, _x, _y)
+                            if _k1 is None: break
+                            _k2 = evaluar_edo(func_input, _x + _p1 * rk_h, _y + _p1 * rk_h * _k1)
+                            if _k2 is None: break
+                            _y_next = _y + rk_h * (_b1 * _k1 + _b2 * _k2)
+
+                            _x_k2 = _x + _p1 * rk_h
+                            _y_k2 = _y + _p1 * rk_h * _k1
+                            bloque = (
+                                f"k₁ = f(x_{_i}, y_{_i}) = f({_x:{fmt}}, {_y:{fmt}}) = {_k1:{fmt}}\n\n"
+                                f"k₂ = f(x_{_i} + p₁·h, y_{_i} + p₁·h·k₁)\n"
+                                f"k₂ = f({_x:{fmt}} + {_p1}·{rk_h}, {_y:{fmt}} + {_p1}·{rk_h}·{_k1:{fmt}})\n"
+                                f"k₂ = f({_x_k2:{fmt}}, {_y_k2:{fmt}}) = {_k2:{fmt}}\n\n"
+                                f"y_{{{_i+1}}} = y_{_i} + h·(b₁·k₁ + b₂·k₂)\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h}·({_b1}·{_k1:{fmt}} + {_b2}·{_k2:{fmt}})\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h}·({_b1*_k1:{fmt}} + {_b2*_k2:{fmt}})\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h * (_b1*_k1 + _b2*_k2):{fmt}}\n"
+                                f"y_{{{_i+1}}} = {_y_next:{fmt}}"
+                            )
+                            st.code(bloque, language="text")
+                            _y = _y_next
+                            _x = _x + rk_h
+
+                        else:  # RK4
+                            _k1 = evaluar_edo(func_input, _x, _y)
+                            if _k1 is None: break
+                            _x_k2 = _x + rk_h/2
+                            _y_k2 = _y + rk_h/2 * _k1
+                            _k2 = evaluar_edo(func_input, _x_k2, _y_k2)
+                            if _k2 is None: break
+                            _x_k3 = _x + rk_h/2
+                            _y_k3 = _y + rk_h/2 * _k2
+                            _k3 = evaluar_edo(func_input, _x_k3, _y_k3)
+                            if _k3 is None: break
+                            _x_k4 = _x + rk_h
+                            _y_k4 = _y + rk_h * _k3
+                            _k4 = evaluar_edo(func_input, _x_k4, _y_k4)
+                            if _k4 is None: break
+                            _phi = (_k1 + 2*_k2 + 2*_k3 + _k4) / 6
+                            _y_next = _y + rk_h * _phi
+
+                            bloque = (
+                                f"k₁ = f(x_{_i}, y_{_i}) = f({_x:{fmt}}, {_y:{fmt}}) = {_k1:{fmt}}\n\n"
+                                f"k₂ = f(x_{_i} + h/2, y_{_i} + h/2·k₁)\n"
+                                f"k₂ = f({_x:{fmt}} + {rk_h}/2, {_y:{fmt}} + {rk_h}/2·{_k1:{fmt}})\n"
+                                f"k₂ = f({_x_k2:{fmt}}, {_y_k2:{fmt}}) = {_k2:{fmt}}\n\n"
+                                f"k₃ = f(x_{_i} + h/2, y_{_i} + h/2·k₂)\n"
+                                f"k₃ = f({_x:{fmt}} + {rk_h}/2, {_y:{fmt}} + {rk_h}/2·{_k2:{fmt}})\n"
+                                f"k₃ = f({_x_k3:{fmt}}, {_y_k3:{fmt}}) = {_k3:{fmt}}\n\n"
+                                f"k₄ = f(x_{_i} + h, y_{_i} + h·k₃)\n"
+                                f"k₄ = f({_x:{fmt}} + {rk_h}, {_y:{fmt}} + {rk_h}·{_k3:{fmt}})\n"
+                                f"k₄ = f({_x_k4:{fmt}}, {_y_k4:{fmt}}) = {_k4:{fmt}}\n\n"
+                                f"φ = (1/6)·(k₁ + 2·k₂ + 2·k₃ + k₄)\n"
+                                f"φ = (1/6)·({_k1:{fmt}} + 2·{_k2:{fmt}} + 2·{_k3:{fmt}} + {_k4:{fmt}})\n"
+                                f"φ = (1/6)·({_k1 + 2*_k2 + 2*_k3 + _k4:{fmt}})\n"
+                                f"φ = {_phi:{fmt}}\n\n"
+                                f"y_{{{_i+1}}} = y_{_i} + h·φ\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h}·{_phi:{fmt}}\n"
+                                f"y_{{{_i+1}}} = {_y_next:{fmt}}"
+                            )
+                            st.code(bloque, language="text")
+                            _y = _y_next
+                            _x = _x + rk_h
+
+                        st.markdown("---")
+
                 # --- GRÁFICOS ---
                 tab1, tab2, tab3 = st.tabs(["Solución y(x)", "Campo de Pendientes", "Análisis de Error"])
 

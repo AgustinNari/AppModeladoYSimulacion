@@ -1568,10 +1568,23 @@ with col2:
 
             if mostrar_formulas:
                 st.subheader("Fórmulas")
-                st.latex(r"I \approx V \cdot \frac{1}{N}\sum_{i=1}^{N} f(x_i)")
+                st.latex(r"I \approx \text{Area} \cdot \frac{1}{N}\sum_{i=1}^{N} f(x_i)")
                 st.latex(r"\text{Var} = \frac{1}{N-1}\sum_{i=1}^{N} \left(f(x_i) - \bar{f}\right)^2")
-                st.latex(r"EE = V \cdot \sqrt{\frac{\text{Var}}{N}}")
+                st.latex(r"EE = \text{Area} \cdot \frac{S_{\text{desv}}}{\sqrt{N}}")
                 st.latex(r"IC = I \pm z_{\alpha/2} EE")
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $I$ | Valor estimado de la integral de Montecarlo |
+| Area | Volumen/Área del dominio de integración: $b - a$ |
+| $N$ | Cantidad de puntos aleatorios generados |
+| $f(x_i)$ | Valor de la función en el punto muestreado $x_i$ |
+| Var | Varianza muestral de las evaluaciones de $f$ |
+| $S_{\\text{desv}}$ | Desviación estándar muestral ($\\sqrt{\\text{Var}}$) |
+| $EE$ | Error Estándar de la media ponderado por el área |
+| $IC$ | Intervalo de confianza estadístico |
+""")
             
             st.subheader("Resultado")
             c1, c2, c3, c4, c5 = st.columns(5)
@@ -1580,7 +1593,7 @@ with col2:
                 c2.metric("Valor Exacto (Scipy)", f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
             else:
                 c2.metric("Valor Exacto", "N/A")
-            c3.metric("Desv. Estándar (S)", f"{s_dev:{fmt}}")
+            c3.metric("Desv. Estándar (S_desv)", f"{s_dev:{fmt}}")
             c4.metric("Error Estándar (EE)", formatear_error(err_est))
             c5.metric(f"IC {conf_mc}%", f"[{ic_low:{fmt}}, {ic_up:{fmt}}]")
             st.write(f"**Área/Volumen Región:** {vol:{fmt}}")
@@ -1590,15 +1603,15 @@ with col2:
                 _f_mean = np.mean(y_r[~np.isnan(y_r)])
                 _n_valid_mc = int(np.sum(~np.isnan(y_r)))
                 bloque = (
-                    f"V = b - a = {b_mc} - {a_mc} = {vol:{fmt}}\n"
+                    f"Area = b - a = {b_mc} - {a_mc} = {vol:{fmt}}\n"
                     f"N = {n_mc} puntos aleatorios en [{a_mc}, {b_mc}]\n\n"
                     f"f̄ = (1/N) · Σf(xᵢ) = {_f_mean:{fmt}}\n\n"
-                    f"I = V · f̄\n"
+                    f"I = Area · f̄\n"
                     f"I = {vol:{fmt}} · {_f_mean:{fmt}}\n"
                     f"I = {integral:{fmt}}\n\n"
-                    f"S² = (1/(N-1)) · Σ(f(xᵢ) - f̄)² = {s_dev**2:{fmt}}\n"
-                    f"S = √(S²) = {s_dev:{fmt}}\n\n"
-                    f"EE = V · √(S²/N) = {vol:{fmt}} · √({s_dev**2:{fmt}}/{n_mc})\n"
+                    f"S_desv² = (1/(N-1)) · Σ(f(xᵢ) - f̄)² = {s_dev**2:{fmt}}\n"
+                    f"S_desv = √(S_desv²) = {s_dev:{fmt}}\n\n"
+                    f"EE = Area · (S_desv / √N) = {vol:{fmt}} · ({s_dev:{fmt}} / √{n_mc})\n"
                     f"EE = {err_est:{fmt}}\n\n"
                     f"IC = I ± z·EE = {integral:{fmt}} ± {abs(integral - ic_low):{fmt}}\n"
                     f"IC = [{ic_low:{fmt}}, {ic_up:{fmt}}]"
@@ -1693,10 +1706,23 @@ with col2:
                 
             if mostrar_formulas:
                 st.subheader("Fórmulas")
-                st.latex(r"I \approx S \cdot \frac{1}{N}\sum_{i=1}^{N} f(x_i, y_i)")
+                st.latex(r"I \approx \text{Area} \cdot \frac{1}{N}\sum_{i=1}^{N} f(x_i, y_i)")
                 st.latex(r"\text{Var} = \frac{1}{N-1}\sum_{i=1}^{N} \left(f(x_i, y_i) - \bar{f}\right)^2")
-                st.latex(r"EE = S \cdot \sqrt{\frac{\text{Var}}{N}}")
+                st.latex(r"EE = \text{Area} \cdot \frac{S_{\text{desv}}}{\sqrt{N}}")
                 st.latex(r"IC = I \pm z_{\alpha/2} EE")
+                with st.expander("📖 Notación"):
+                    st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $I$ | Valor estimado de la integral doble de Montecarlo |
+| Area | Área del dominio de integración: $(b_x - a_x) \\cdot (b_y - a_y)$ |
+| $N$ | Cantidad de puntos aleatorios generados |
+| $f(x_i, y_i)$ | Valor de la función en el punto muestreado $(x_i, y_i)$ |
+| Var | Varianza muestral de las evaluaciones de $f$ |
+| $S_{\\text{desv}}$ | Desviación estándar muestral ($\\sqrt{\\text{Var}}$) |
+| $EE$ | Error Estándar de la media ponderado por el área |
+| $IC$ | Intervalo de confianza estadístico |
+""")
             
             st.subheader("Resultado")
             c1, c2, c3, c4, c5 = st.columns(5)
@@ -1705,7 +1731,7 @@ with col2:
                 c2.metric("Valor Exacto (Scipy)", f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
             else:
                 c2.metric("Valor Exacto", "N/A")
-            c3.metric("Desv. Estándar (S)", f"{s_dev:{fmt}}")
+            c3.metric("Desv. Estándar (S_desv)", f"{s_dev:{fmt}}")
             c4.metric("Error Estándar (EE)", formatear_error(err_est))
             c5.metric(f"IC {conf_mc2}%", f"[{ic_low:{fmt}}, {ic_up:{fmt}}]")
             st.write(f"**Área Integración:** {area_xy:{fmt}}")
@@ -1714,14 +1740,14 @@ with col2:
             with st.expander("📋 Desarrollo paso a paso", expanded=False):
                 _f_mean_d = np.mean(z_r[~np.isnan(z_r)])
                 bloque = (
-                    f"S = (bx-ax)·(by-ay) = ({b_x_mc}-{a_x_mc})·({b_y_mc}-{a_y_mc}) = {area_xy:{fmt}}\n"
+                    f"Area = (bx-ax)·(by-ay) = ({b_x_mc}-{a_x_mc})·({b_y_mc}-{a_y_mc}) = {area_xy:{fmt}}\n"
                     f"N = {n_mc2} puntos aleatorios\n\n"
                     f"f̄ = (1/N) · Σf(xᵢ,yᵢ) = {_f_mean_d:{fmt}}\n\n"
-                    f"I = S · f̄\n"
+                    f"I = Area · f̄\n"
                     f"I = {area_xy:{fmt}} · {_f_mean_d:{fmt}}\n"
                     f"I = {integral:{fmt}}\n\n"
-                    f"S² = {s_dev**2:{fmt}},  S = {s_dev:{fmt}}\n"
-                    f"EE = S_area · √(Var/N) = {err_est:{fmt}}\n\n"
+                    f"S_desv² = {s_dev**2:{fmt}},  S_desv = {s_dev:{fmt}}\n"
+                    f"EE = Area · (S_desv / √N) = {err_est:{fmt}}\n\n"
                     f"IC = [{ic_low:{fmt}}, {ic_up:{fmt}}]"
                 )
                 st.code(bloque, language="text")
@@ -2042,6 +2068,15 @@ with col2:
                     st.subheader("Fórmulas — RK4 Sistema")
                     st.latex(r"\frac{dy_1}{dx} = f_1(x, y_1, y_2) \qquad \frac{dy_2}{dx} = f_2(x, y_1, y_2)")
                     st.latex(r"y_{j,i+1} = y_{j,i} + \frac{h}{6}\left(k_1^{(j)} + 2k_2^{(j)} + 2k_3^{(j)} + k_4^{(j)}\right)")
+                    with st.expander("📖 Notación"):
+                        st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $y_{j,i}$ | Aproximación de la variable dependiente $j$ (ej. $y_1$ o $y_2$) en el paso $i$ |
+| $h$ | Tamaño del paso |
+| $k_m^{(j)}$ | Pendiente $m$-ésima evaluada para la variable $j$ |
+| $f_j$ | Función que define la derivada de la variable $j$: $dy_j/dx$ |
+""")
 
                 st.subheader("Resultado — Sistema RK4")
                 df_sys, xs_sys, y1s_sys, y2s_sys = metodo_rk4_sistema(

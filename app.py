@@ -1617,16 +1617,27 @@ with col2:
             if invalid_count > 0:
                 st.warning(f"⚠️ Se omitieron {invalid_count} muestras que resultaron en valores indefinidos en la función.")
             
-            # --- CÁLCULO DE ERROR VERDADERO CON SCIPY ---
-            def func_scipy(x):
-                val = evaluar_f(func_input, x)
-                return val if val is not None else 0.0
-            
+            # --- CÁLCULO DE ERROR VERDADERO CON SYMPY / SCIPY ---
+            integral_sym_str = None
             try:
-                exact_val, exact_err = spi.quad(func_scipy, a_mc, b_mc)
+                x_sym = sp.symbols('x')
+                f_p = func_input.replace("^", "**").replace("sen", "sin").replace("ln", "log")
+                f_p = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_p)
+                f_expr = sp.sympify(f_p)
+                integral_sym = sp.integrate(f_expr, x_sym)
+                integral_def_sym = sp.integrate(f_expr, (x_sym, a_mc, b_mc))
+                exact_val = float(integral_def_sym.evalf())
                 true_error_perc = abs(integral - exact_val) / abs(exact_val) * 100 if exact_val != 0 else 0.0
+                integral_sym_str = str(integral_sym)
             except:
-                exact_val, true_error_perc = None, None
+                def func_scipy(x):
+                    val = evaluar_f(func_input, x)
+                    return val if val is not None else 0.0
+                try:
+                    exact_val, exact_err = spi.quad(func_scipy, a_mc, b_mc)
+                    true_error_perc = abs(integral - exact_val) / abs(exact_val) * 100 if exact_val != 0 else 0.0
+                except:
+                    exact_val, true_error_perc = None, None
 
             if mostrar_formulas:
                 st.subheader("Fórmulas")
@@ -1652,7 +1663,8 @@ with col2:
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("Integral ≈", f"{integral:{fmt}}")
             if exact_val is not None:
-                c2.metric("Valor Exacto (Scipy)", f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
+                lbl = "Valor Exacto (Analítico)" if integral_sym_str else "Valor Exacto (Scipy)"
+                c2.metric(lbl, f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
             else:
                 c2.metric("Valor Exacto", "N/A")
             c3.metric("Desv. Estándar (S_desv)", f"{s_dev:{fmt}}")
@@ -1678,6 +1690,15 @@ with col2:
                     f"IC = I ± z·EE = {integral:{fmt}} ± {abs(integral - ic_low):{fmt}}\n"
                     f"IC = [{ic_low:{fmt}}, {ic_up:{fmt}}]"
                 )
+                if integral_sym_str is not None:
+                    bloque += (
+                        f"\n\nIntegración Analítica (Exacta):\n"
+                        f"∫ f(x) dx = {integral_sym_str}\n"
+                        f"Evaluando en límites [{a_mc}, {b_mc}]: {exact_val:{fmt}}\n"
+                        f"Error Verdadero = |{integral:{fmt}} - {exact_val:{fmt}}| = {abs(integral - exact_val):{fmt}}"
+                    )
+                elif exact_val is not None:
+                    bloque += f"\n\nError Verdadero (Numérico Scipy) = |{integral:{fmt}} - {exact_val:{fmt}}| = {abs(integral - exact_val):{fmt}}"
                 st.code(bloque, language="text")
             
             # --- TABS PARA GRÁFICOS AVANZADOS ---
@@ -1756,15 +1777,26 @@ with col2:
             if invalid_count > 0:
                 st.warning(f"⚠️ Se omitieron {invalid_count} muestras que resultaron en valores indefinidos en la función.")
             
-            # --- CÁLCULO DE ERROR VERDADERO DOBLE CON SCIPY ---
-            def func_scipy_dbl(y, x):
-                return float(evaluar_f_array(func_input, np.array([x]), np.array([y]))[0])
-            
+            # --- CÁLCULO DE ERROR VERDADERO DOBLE CON SYMPY / SCIPY ---
+            integral_sym_str = None
             try:
-                exact_val, exact_err = spi.dblquad(func_scipy_dbl, a_x_mc, b_x_mc, lambda x: a_y_mc, lambda x: b_y_mc)
+                x_sym, y_sym = sp.symbols('x y')
+                f_p = func_input.replace("^", "**").replace("sen", "sin").replace("ln", "log")
+                f_p = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', f_p)
+                f_expr = sp.sympify(f_p)
+                integral_sym = sp.integrate(f_expr, y_sym, x_sym)
+                integral_def_sym = sp.integrate(f_expr, (y_sym, a_y_mc, b_y_mc), (x_sym, a_x_mc, b_x_mc))
+                exact_val = float(integral_def_sym.evalf())
                 true_error_perc = abs(integral - exact_val) / abs(exact_val) * 100 if exact_val != 0 else 0.0
+                integral_sym_str = str(integral_sym)
             except:
-                exact_val, true_error_perc = None, None
+                def func_scipy_dbl(y, x):
+                    return float(evaluar_f_array(func_input, np.array([x]), np.array([y]))[0])
+                try:
+                    exact_val, exact_err = spi.dblquad(func_scipy_dbl, a_x_mc, b_x_mc, lambda x: a_y_mc, lambda x: b_y_mc)
+                    true_error_perc = abs(integral - exact_val) / abs(exact_val) * 100 if exact_val != 0 else 0.0
+                except:
+                    exact_val, true_error_perc = None, None
                 
             if mostrar_formulas:
                 st.subheader("Fórmulas")
@@ -1790,7 +1822,8 @@ with col2:
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("Integral Acumulada ≈", f"{integral:{fmt}}")
             if exact_val is not None:
-                c2.metric("Valor Exacto (Scipy)", f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
+                lbl = "Valor Exacto (Analítico)" if integral_sym_str else "Valor Exacto (Scipy)"
+                c2.metric(lbl, f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
             else:
                 c2.metric("Valor Exacto", "N/A")
             c3.metric("Desv. Estándar (S_desv)", f"{s_dev:{fmt}}")
@@ -1812,6 +1845,15 @@ with col2:
                     f"EE = Area · (S_desv / √N) = {err_est:{fmt}}\n\n"
                     f"IC = [{ic_low:{fmt}}, {ic_up:{fmt}}]"
                 )
+                if integral_sym_str is not None:
+                    bloque += (
+                        f"\n\nIntegración Analítica (Exacta):\n"
+                        f"∬ f(x,y) dy dx = {integral_sym_str}\n"
+                        f"Evaluando en límites x:[{a_x_mc}, {b_x_mc}], y:[{a_y_mc}, {b_y_mc}]: {exact_val:{fmt}}\n"
+                        f"Error Verdadero = |{integral:{fmt}} - {exact_val:{fmt}}| = {abs(integral - exact_val):{fmt}}"
+                    )
+                elif exact_val is not None:
+                    bloque += f"\n\nError Verdadero (Numérico Scipy) = |{integral:{fmt}} - {exact_val:{fmt}}| = {abs(integral - exact_val):{fmt}}"
                 st.code(bloque, language="text")
             
             tab1, tab2, tab3 = st.tabs(["Muestreo 3D", "Convergencia y Confianza", "Distribución de f(x,y)"])

@@ -155,7 +155,7 @@ def calcular_lagrange_avanzado(x_strs, y_strs):
         polinomio_total += y_exact[i] * li
     
     poly_final = sp.simplify(sp.expand(polinomio_total))
-    return poly_final, listado_L
+    return poly_final, listado_L, x_exact, y_exact
 
 # --- LÓGICA DE DIFERENCIAS CENTRALES ---
 
@@ -1002,7 +1002,9 @@ with col1:
 with col2:
     if ejecutar:
         if metodo_sel == "Interpolación Lagrange":
-            poly, lista_L = calcular_lagrange_avanzado(x_in_strs, y_in_strs)
+            poly, lista_L, x_exact, y_exact = calcular_lagrange_avanzado(x_in_strs, y_in_strs)
+            n_pts = len(x_exact)
+            x_sym = sp.symbols('x')
             if mostrar_formulas:
                 st.subheader("Fórmulas")
                 st.latex(
@@ -1021,6 +1023,36 @@ with col2:
 | $L_i(x)$ | $i$-ésimo polinomio base de Lagrange |
 | $x$ | Punto en el que se evalúa $P(x)$ |
 """)
+
+            # --- PROCEDIMIENTO PASO A PASO ---
+            st.subheader("Procedimiento paso a paso")
+
+            # Mostrar cada L_i(x)
+            for i in range(n_pts):
+                st.markdown(f"**Polinomio base $L_{{{i}}}(x)$:**")
+                # Forma de producto (sin simplificar)
+                num_parts = []
+                den_parts = []
+                for j in range(n_pts):
+                    if i != j:
+                        num_parts.append(f"(x - {sp.latex(x_exact[j])})")
+                        den_parts.append(f"({sp.latex(x_exact[i])} - {sp.latex(x_exact[j])})")
+                producto_latex = r"L_{" + str(i) + r"}(x) = \frac{" + r" \cdot ".join(num_parts) + r"}{" + r" \cdot ".join(den_parts) + r"}"
+                st.latex(producto_latex)
+                # Forma simplificada
+                st.latex(f"L_{{{i}}}(x) = {sp.latex(lista_L[i])}")
+                st.markdown("---")
+
+            # Mostrar armado de P(x) = Σ yi * Li(x)
+            st.markdown("**Construcción de $P(x)$:**")
+            terminos_latex = []
+            for i in range(n_pts):
+                yi_latex = sp.latex(y_exact[i])
+                li_latex = sp.latex(lista_L[i])
+                terminos_latex.append(f"({yi_latex}) \\cdot ({li_latex})")
+            suma_latex = r"P(x) = " + " + ".join(terminos_latex)
+            st.latex(suma_latex)
+
             st.subheader("Resultado")
             st.latex(f"P(x) = {sp.latex(poly)}")
 

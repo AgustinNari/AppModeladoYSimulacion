@@ -609,6 +609,35 @@ def metodo_newton_raphson(f_str, x0, tol, max_iter):
 
 # --- PUNTO FIJO Y AITKEN ---
 
+def metodo_punto_fijo(g_str, x0, tol, max_iter):
+    """Iteración de Punto Fijo clásico."""
+    history = []
+    xn = x0
+    
+    for i in range(max_iter):
+        xn1 = evaluar_f(g_str, xn)
+        if xn1 is None:
+            return pd.DataFrame(history), "error_eval", xn, 100.0
+            
+        error_pct = abs((xn1 - xn) / xn1) * 100 if abs(xn1) > 1e-12 else 0.0
+        
+        row = {
+            "n": i,
+            "Xn": xn,
+            "Xn+1": xn1,
+            "Error %": "" if i == 0 else error_pct
+        }
+        history.append(row)
+        
+        if i > 0 and error_pct < tol:
+            return pd.DataFrame(history), "convergencia", xn1, error_pct
+            
+        xn = xn1
+        
+    return pd.DataFrame(history), "limite", xn, error_pct if i > 0 else 100.0
+
+
+
 def metodo_punto_fijo_aitken(g_str, x0, tol, max_iter):
     """Iteración de Punto Fijo con aceleración de Aitken (Δ²)."""
     history = []
@@ -840,7 +869,7 @@ def format_df(df_in):
 
 
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
-    ["Bisección", "Newton-Raphson", "Punto Fijo y Aitken", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8", "Montecarlo", "Montecarlo Doble", "Runge-Kutta"])
+    ["Bisección", "Newton-Raphson", "Punto Fijo", "Punto Fijo y Aitken", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8", "Montecarlo", "Montecarlo Doble", "Runge-Kutta"])
 
 # --- BOTONERA DE FUNCIONES MATEMÁTICAS ---
 
@@ -848,6 +877,7 @@ metodo_sel = st.sidebar.selectbox("Selecciona Método",
 _FX_DEFAULTS = {
     "Bisección": "x**2 - 2",
     "Newton-Raphson": "x**2 - 2",
+    "Punto Fijo": "cos(x)",
     "Punto Fijo y Aitken": "cos(x)",
     "Simpson 1/3": "x**3",
     "Simpson 3/8": "x**3",
@@ -1071,7 +1101,7 @@ with col1:
         except:
             st.error("Límites inválidos.")
             a_x_mc, b_x_mc, a_y_mc, b_y_mc = 0.0, 1.0, 0.0, 2.0
-    elif metodo_sel == "Punto Fijo y Aitken":
+    elif metodo_sel in ["Punto Fijo", "Punto Fijo y Aitken"]:
         func_input = st.text_input("g(x):", key="fx_input", help="Función de iteración de punto fijo. Ej: cos(x), (x + 2/x)/2, sqrt(2 + x)")
         x0_pf = st.number_input("x₀ (valor inicial)", value=1.0, format=f"%.{precision}f")
         tol_pf_str = st.text_input("Tolerancia (%)", value="1e-3")
@@ -2361,7 +2391,7 @@ with col2:
                         xaxis_title="y₁", yaxis_title="y₂")
                     st.plotly_chart(fig_phase, use_container_width=True)
 
-        elif metodo_sel == "Punto Fijo y Aitken":
+        elif metodo_sel in ["Punto Fijo", "Punto Fijo y Aitken"]:
             if mostrar_formulas:
                 st.subheader("Fórmulas")
                 st.latex(r"x_{n+1} = g(x_n)")

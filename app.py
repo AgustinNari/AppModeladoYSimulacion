@@ -634,71 +634,122 @@ def formatear_error(valor):
     return f"{valor:{fmt}}"
 
 
-def metodo_biseccion(f_str, a, b, tol, max_iter):
+def _errores_iterativos(valor_anterior, valor_nuevo):
+    """Devuelve error absoluto y relativo porcentual entre dos aproximaciones."""
+    err_abs = abs(valor_nuevo - valor_anterior)
+    err_rel = abs((valor_nuevo - valor_anterior) / valor_nuevo) * 100 if abs(valor_nuevo) > 1e-12 else 0.0
+    return err_abs, err_rel
+
+
+def _cumple_criterios_parada(err_abs, tol_abs, usar_abs, err_rel, tol_rel, usar_rel):
+    """Evalúa si se cumplen los criterios de parada activos."""
+    criterios = []
+    if usar_abs:
+        criterios.append(err_abs <= tol_abs)
+    if usar_rel:
+        criterios.append(err_rel <= tol_rel)
+    return bool(criterios) and all(criterios)
+
+
+def metodo_biseccion(f_str, a, b, tol_abs, tol_rel, usar_abs=True, usar_rel=False, max_iter=100):
     history = []
     fa, fb = evaluar_f(f_str, a), evaluar_f(f_str, b)
-    if fa is None or fb is None or fa * fb >= 0: return None, "error_signos", 0, 100
+    if fa is None or fb is None or fa * fb >= 0:
+        return None, "error_signos", 0, 100
+
     x_ant = a
+    err_abs = 100.0
+    err_rel = 100.0
+
     for i in range(max_iter):
         c = (a + b) / 2
         fc = evaluar_f(f_str, c)
-        err = abs(c - x_ant) / abs(c) * 100 if abs(c) > 1e-12 else 0
-        history.append({"Iter": i+1, "a": a, "b": b, "x_n": c, "f(x_n)": fc, "Error (%)": err})
-        if abs(fc) < 1e-12 or err < tol: return pd.DataFrame(history), "convergencia", c, err
-        if fa * fc < 0: b = c
-        else: a, fa = c, fc
+        err_abs, err_rel = _errores_iterativos(x_ant, c)
+        history.append({
+            "Iter": i + 1,
+            "a": a,
+            "b": b,
+            "x_n": c,
+            "f(x_n)": fc,
+            "Error abs": err_abs,
+            "Error (%)": err_rel,
+        })
+        if abs(fc) < 1e-12 or _cumple_criterios_parada(err_abs, tol_abs, usar_abs, err_rel, tol_rel, usar_rel):
+            return pd.DataFrame(history), "convergencia", c, (err_rel if usar_rel else err_abs)
+        if fa * fc < 0:
+            b = c
+        else:
+            a, fa = c, fc
         x_ant = c
-    return pd.DataFrame(history), "limite", x_ant, err
+    return pd.DataFrame(history), "limite", x_ant, (err_rel if usar_rel else err_abs)
 
-def metodo_newton_raphson(f_str, x0, tol, max_iter):
+
+def metodo_newton_raphson(f_str, x0, tol_abs, tol_rel, usar_abs=True, usar_rel=False, max_iter=100):
     history = []
     x_n = x0
+    err_abs = 100.0
+    err_rel = 100.0
+
     for i in range(max_iter):
         fx = evaluar_f(f_str, x_n)
         dfx = calcular_derivada_robusta(f_str, x_n)
-        if dfx == 0: break
+        if dfx == 0:
+            break
         x_next = x_n - fx / dfx
-        err = abs(x_next - x_n) / abs(x_next) * 100 if abs(x_next) > 1e-12 else 0
-        history.append({"Iter": i+1, "x_n": x_n, "f(x_n)": fx, "f'(x_n)": dfx, "Error (%)": "" if i == 0 else err})
-        if i > 0 and err < tol: return pd.DataFrame(history), "convergencia", x_next, err
+        err_abs, err_rel = _errores_iterativos(x_n, x_next)
+        history.append({
+            "Iter": i + 1,
+            "x_n": x_n,
+            "f(x_n)": fx,
+            "f'(x_n)": dfx,
+            "Error abs": "" if i == 0 else err_abs,
+            "Error (%)": "" if i == 0 else err_rel,
+        })
+        if i > 0 and _cumple_criterios_parada(err_abs, tol_abs, usar_abs, err_rel, tol_rel, usar_rel):
+            return pd.DataFrame(history), "convergencia", x_next, (err_rel if usar_rel else err_abs)
         x_n = x_next
-    return pd.DataFrame(history), "limite", x_n, err
+    return pd.DataFrame(history), "limite", x_n, (err_rel if usar_rel else err_abs)
 
 # --- PUNTO FIJO Y AITKEN ---
 
-def metodo_punto_fijo(g_str, x0, tol, max_iter):
+def metodo_punto_fijo(g_str, x0, tol_abs, tol_rel, usar_abs=True, usar_rel=False, max_iter=100):
     """Iteración de Punto Fijo clásico."""
     history = []
     xn = x0
+    err_abs = 100.0
+    err_rel = 100.0
     
     for i in range(max_iter):
         xn1 = evaluar_f(g_str, xn)
         if xn1 is None:
             return pd.DataFrame(history), "error_eval", xn, 100.0
             
-        error_pct = abs((xn1 - xn) / xn1) * 100 if abs(xn1) > 1e-12 else 0.0
+        err_abs, err_rel = _errores_iterativos(xn, xn1)
         
         row = {
             "n": i,
             "Xn": xn,
             "Xn+1": xn1,
-            "Error %": "" if i == 0 else error_pct
+            "Error abs": "" if i == 0 else err_abs,
+            "Error %": "" if i == 0 else err_rel,
         }
         history.append(row)
         
-        if i > 0 and error_pct < tol:
-            return pd.DataFrame(history), "convergencia", xn1, error_pct
+        if i > 0 and _cumple_criterios_parada(err_abs, tol_abs, usar_abs, err_rel, tol_rel, usar_rel):
+            return pd.DataFrame(history), "convergencia", xn1, (err_rel if usar_rel else err_abs)
             
         xn = xn1
         
-    return pd.DataFrame(history), "limite", xn, error_pct if i > 0 else 100.0
+    return pd.DataFrame(history), "limite", xn, (err_rel if usar_rel else err_abs)
 
 
 
-def metodo_punto_fijo_aitken(g_str, x0, tol, max_iter):
+def metodo_punto_fijo_aitken(g_str, x0, tol_abs, tol_rel, usar_abs=True, usar_rel=False, max_iter=100):
     """Iteración de Punto Fijo con aceleración de Aitken (Δ²)."""
     history = []
     xn = x0
+    err_abs = 100.0
+    err_rel = 100.0
 
     for i in range(max_iter):
         # Xn+1 = g(Xn)
@@ -714,13 +765,9 @@ def metodo_punto_fijo_aitken(g_str, x0, tol, max_iter):
         # Aitken: Xn* = Xn - (Xn+1 - Xn)^2 / (Xn+2 - 2*Xn+1 + Xn)
         denom = xn2 - 2 * xn1 + xn
         x_hat = None
-        error_pct = None
         if abs(denom) > 1e-15:
             x_hat = xn - (xn1 - xn) ** 2 / denom
-            if abs(x_hat) > 1e-12:
-                error_pct = abs((x_hat - xn) / x_hat) * 100
-            else:
-                error_pct = 0.0
+            err_abs, err_rel = _errores_iterativos(xn, x_hat)
 
         row = {
             "n": i,
@@ -728,23 +775,25 @@ def metodo_punto_fijo_aitken(g_str, x0, tol, max_iter):
             "Xn+1": xn1,
             "Xn+2": xn2,
             "Xn*": x_hat if x_hat is not None else "",
-            "Error %": error_pct if error_pct is not None else "",
+            "Error abs": err_abs if x_hat is not None else "",
+            "Error %": err_rel if x_hat is not None else "",
         }
         history.append(row)
 
         # Criterio de convergencia sobre x_hat
-        if error_pct is not None and error_pct < tol:
-            return pd.DataFrame(history), "convergencia", x_hat, error_pct
+        if x_hat is not None and i > 0 and _cumple_criterios_parada(err_abs, tol_abs, usar_abs, err_rel, tol_rel, usar_rel):
+            return pd.DataFrame(history), "convergencia", x_hat, (err_rel if usar_rel else err_abs)
 
         # Siguiente iteración: Xn = Xn+2 (avanzar secuencia punto fijo)
         xn = xn2
 
     ultimo_xhat = x_hat if x_hat is not None else xn
-    ultimo_err  = error_pct if error_pct is not None else 100.0
+    ultimo_err  = err_rel if usar_rel else err_abs
     return pd.DataFrame(history), "limite", ultimo_xhat, ultimo_err
 
 
 # --- RUNGE-KUTTA: EVALUADOR DE EDO f(x, y) ---
+
 
 def evaluar_edo(f_str, x_val, y_val):
     """Evalúa f(x, y) para EDOs dy/dx = f(x, y)"""
@@ -1161,11 +1210,15 @@ with col1:
     elif metodo_sel in ["Punto Fijo", "Punto Fijo y Aitken"]:
         func_input = st.text_input("g(x):", key="fx_input", help="Función de iteración de punto fijo. Ej: cos(x), (x + 2/x)/2, sqrt(2 + x)")
         x0_pf = st.number_input("x₀ (valor inicial)", value=1.0, format=f"%.{precision}f")
-        tol_pf_str = st.text_input("Tolerancia (%)", value="1e-3")
+        tol_pf_abs_str = st.text_input("Tolerancia valor neto/real", value="1e-3", key="tol_pf_abs")
         try:
-            tol_pf = float(sp.sympify(tol_pf_str).evalf())
+            tol_pf_abs = float(sp.sympify(tol_pf_abs_str).evalf())
         except:
-            tol_pf = 0.001
+            tol_pf_abs = 0.001
+        tol_pf_rel = st.slider("Tolerancia relativa (%)", 0.0, 100.0, 0.05, 0.05, format="%.2f%%", key="tol_pf_rel")
+        col_tol_pf_1, col_tol_pf_2 = st.columns(2)
+        usar_tol_pf_abs = col_tol_pf_1.checkbox("Usar valor neto/real", value=True, key="use_tol_pf_abs")
+        usar_tol_pf_rel = col_tol_pf_2.checkbox("Usar relativa porcentual", value=False, key="use_tol_pf_rel")
         iter_pf = st.slider("Max Iteraciones", 5, 200, 50)
     elif metodo_sel == "Runge-Kutta":
         rk_tipo = st.radio("Tipo de EDO", ["EDO Simple", "Sistema de 2 EDOs"], horizontal=True)
@@ -1213,11 +1266,15 @@ with col1:
             a_in, b_in = st.number_input("a", value=0.0), st.number_input("b", value=2.0)
         else:
             x0_in = st.number_input("x0", value=1.0)
-        tol_in_str = st.text_input("Tolerancia (%)", value="1e-3")
+        tol_abs_str = st.text_input("Tolerancia valor neto/real", value="1e-3", key="tol_root_abs")
         try:
-            tol_in = float(sp.sympify(tol_in_str).evalf())
+            tol_abs = float(sp.sympify(tol_abs_str).evalf())
         except:
-            tol_in = 0.001
+            tol_abs = 0.001
+        tol_rel = st.slider("Tolerancia relativa (%)", 0.0, 100.0, 0.05, 0.05, format="%.2f%%", key="tol_root_rel")
+        col_tol_root_1, col_tol_root_2 = st.columns(2)
+        usar_tol_abs = col_tol_root_1.checkbox("Usar valor neto/real", value=True, key="use_tol_root_abs")
+        usar_tol_rel = col_tol_root_2.checkbox("Usar relativa porcentual", value=False, key="use_tol_root_rel")
         iter_in = st.slider("Max Iter", 5, 100, 20)
 
     ejecutar = st.button("Calcular")
@@ -2477,8 +2534,10 @@ with col2:
                 if metodo_sel == "Punto Fijo y Aitken":
                     st.latex(r"\hat{x}_n = x_n - \frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}")
                     st.latex(r"\text{Error} = \left|\frac{\hat{x}_n - x_n}{\hat{x}_n}\right| \times 100\%")
+                    st.latex(r"\text{Criterios de parada: } |\Delta x| \leq \varepsilon_{abs} \;\text{o}\; E_r \leq \varepsilon_{rel}\%")
                 else:
                     st.latex(r"\text{Error} = \left|\frac{x_{n+1} - x_n}{x_{n+1}}\right| \times 100\%")
+                    st.latex(r"\text{Criterios de parada: } |\Delta x| \leq \varepsilon_{abs} \;\text{o}\; E_r \leq \varepsilon_{rel}\%")
                 with st.expander("📖 Notación"):
                     if metodo_sel == "Punto Fijo y Aitken":
                         st.markdown("""
@@ -2503,9 +2562,9 @@ with col2:
 
             st.subheader("Resultado")
             if metodo_sel == "Punto Fijo":
-                df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo(func_input, x0_pf, tol_pf, iter_pf)
+                df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo(func_input, x0_pf, tol_pf_abs, tol_pf_rel, usar_tol_pf_abs, usar_tol_pf_rel, iter_pf)
             else:
-                df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo_aitken(func_input, x0_pf, tol_pf, iter_pf)
+                df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo_aitken(func_input, x0_pf, tol_pf_abs, tol_pf_rel, usar_tol_pf_abs, usar_tol_pf_rel, iter_pf)
 
             if df_pf is not None and len(df_pf) > 0:
                 if estado_pf == "convergencia":
@@ -2518,7 +2577,7 @@ with col2:
                 col_r1, col_r2, col_r3 = st.columns(3)
                 col_r1.metric("Punto Fijo ≈", f"{raiz_pf:{fmt}}")
                 col_r2.metric("Iteraciones", len(df_pf))
-                col_r3.metric("Error Final (%)", formatear_error(err_pf) if err_pf is not None else "N/A")
+                col_r3.metric("Error Final", formatear_error(err_pf) if err_pf is not None else "N/A")
 
                 st.dataframe(format_df(df_pf), use_container_width=True)
 
@@ -2652,7 +2711,7 @@ with col2:
 | Error (%) | Error relativo porcentual entre iteraciones sucesivas |
 """)
             st.subheader("Resultado")
-            df, estado, raiz, err = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in) if metodo_sel == "Bisección" else metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
+            df, estado, raiz, err = metodo_biseccion(func_input, a_in, b_in, tol_abs, tol_rel, usar_tol_abs, usar_tol_rel, iter_in) if metodo_sel == "Bisección" else metodo_newton_raphson(func_input, x0_in, tol_abs, tol_rel, usar_tol_abs, usar_tol_rel, iter_in)
             if df is not None:
                 st.success(f"Raíz: {raiz:{fmt}}")
                 st.dataframe(format_df(df), use_container_width=True)

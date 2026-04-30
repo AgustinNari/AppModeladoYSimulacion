@@ -1279,7 +1279,7 @@ with col2:
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     _h_dc = x_in_num[1] - x_in_num[0]
-                    st.code(f"h = x₁ - x₀ = {x_in_num[1]} - {x_in_num[0]} = {_h_dc}", language="text")
+                    st.code(f"h = x₁ - x₀ = {x_in_num[1]:{fmt}} - {x_in_num[0]:{fmt}} = {_h_dc:{fmt}}", language="text")
                     for _i_dc in range(1, len(x_in_num) - 1):
                         _xi = x_in_num[_i_dc]
                         if _x_val_dc is not None and not np.isclose(_xi, _x_val_dc):
@@ -1290,16 +1290,16 @@ with col2:
                         _d1 = (_fi_p1 - _fi_m1) / (2 * _h_dc)
                         _d2 = (_fi_p1 - 2*_fi + _fi_m1) / (_h_dc**2)
                         bloque = (
-                            f"--- Punto x_{_i_dc} = {_xi} ---\n\n"
+                            f"--- Punto x_{_i_dc} = {_xi:{fmt}} ---\n\n"
                             f"f'(x_{_i_dc}) = [f(x_{_i_dc+1}) - f(x_{_i_dc-1})] / (2h)\n"
-                            f"f'({_xi}) = [{_fi_p1} - {_fi_m1}] / (2·{_h_dc})\n"
-                            f"f'({_xi}) = {_fi_p1 - _fi_m1} / {2*_h_dc}\n"
-                            f"f'({_xi}) = {_d1:{fmt}}\n\n"
+                            f"f'({_xi:{fmt}}) = [{_fi_p1:{fmt}} - {_fi_m1:{fmt}}] / (2·{_h_dc:{fmt}})\n"
+                            f"f'({_xi:{fmt}}) = {_fi_p1 - _fi_m1:{fmt}} / {2*_h_dc:{fmt}}\n"
+                            f"f'({_xi:{fmt}}) = {_d1:{fmt}}\n\n"
                             f"f''(x_{_i_dc}) = [f(x_{_i_dc+1}) - 2·f(x_{_i_dc}) + f(x_{_i_dc-1})] / h²\n"
-                            f"f''({_xi}) = [{_fi_p1} - 2·{_fi} + {_fi_m1}] / {_h_dc}²\n"
-                            f"f''({_xi}) = {_fi_p1 - 2*_fi + _fi_m1} / {_h_dc**2}\n"
-                            f"f''({_xi}) = {_d2:{fmt}}\n\n"
-                            f"Error O(h²) = {_h_dc}² = {_h_dc**2:{fmt}}"
+                            f"f''({_xi:{fmt}}) = [{_fi_p1:{fmt}} - 2·{_fi:{fmt}} + {_fi_m1:{fmt}}] / {_h_dc:{fmt}}²\n"
+                            f"f''({_xi:{fmt}}) = {_fi_p1 - 2*_fi + _fi_m1:{fmt}} / {_h_dc**2:{fmt}}\n"
+                            f"f''({_xi:{fmt}}) = {_d2:{fmt}}\n\n"
+                            f"Error O(h²) = {_h_dc:{fmt}}² = {_h_dc**2:{fmt}}"
                         )
                         st.code(bloque, language="text")
             else: st.error("Se necesitan al menos 3 puntos.")
@@ -1343,7 +1343,7 @@ with col2:
                         st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
-                    st.code(f"h = (b - a) / n = ({b_simp} - {a_simp}) / {n_simp} = {h_step}", language="text")
+                    st.code(f"h = (b - a) / n = ({b_simp:{fmt}} - {a_simp:{fmt}}) / {n_simp} = {h_step:{fmt}}", language="text")
                     _x_s13 = np.linspace(a_simp, b_simp, n_simp + 1)
                     _terms = []
                     _lines = "Nodos y evaluaciones:\n"
@@ -1363,7 +1363,7 @@ with col2:
                         _lines + f"\nSuma = {' + '.join(_terms)}\n"
                         f"Suma = {_suma_val:{fmt}}\n\n"
                         f"I = (h/3) · Suma\n"
-                        f"I = ({h_step}/3) · {_suma_val:{fmt}}\n"
+                        f"I = ({h_step:{fmt}}/3) · {_suma_val:{fmt}}\n"
                         f"I = {h_step/3:{fmt}} · {_suma_val:{fmt}}\n"
                         f"I = {integral:{fmt}}"
                     )
@@ -1372,7 +1372,7 @@ with col2:
                         bloque += (
                             f"\n\nError de Truncamiento:\n"
                             f"|E_T| = ((b - a) · h⁴ / 180) · max|f⁴(ξ)|\n"
-                            f"|E_T| = (({b_simp} - {a_simp}) · {h_step}⁴ / 180) · {_f4_max:{fmt}}\n"
+                            f"|E_T| = (({b_simp:{fmt}} - {a_simp:{fmt}}) · {h_step:{fmt}}⁴ / 180) · {_f4_max:{fmt}}\n"
                             f"|E_T| = {err_trunc:{fmt}}"
                         )
                     st.code(bloque, language="text")
@@ -1440,7 +1440,7 @@ with col2:
                         st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
-                    st.code(f"h = (b - a) / n = ({b_simp38} - {a_simp38}) / {n_simp38} = {h_step}", language="text")
+                    st.code(f"h = (b - a) / n = ({b_simp38:{fmt}} - {a_simp38:{fmt}}) / {n_simp38} = {h_step:{fmt}}", language="text")
                     _x_s38 = np.linspace(a_simp38, b_simp38, n_simp38 + 1)
                     _terms = []
                     _lines = "Nodos y evaluaciones:\n"
@@ -1460,7 +1460,7 @@ with col2:
                         _lines + f"\nSuma = {' + '.join(_terms)}\n"
                         f"Suma = {_suma_val:{fmt}}\n\n"
                         f"I = (3h/8) · Suma\n"
-                        f"I = (3·{h_step}/8) · {_suma_val:{fmt}}\n"
+                        f"I = (3·{h_step:{fmt}}/8) · {_suma_val:{fmt}}\n"
                         f"I = {3*h_step/8:{fmt}} · {_suma_val:{fmt}}\n"
                         f"I = {integral:{fmt}}"
                     )
@@ -1469,7 +1469,7 @@ with col2:
                         bloque += (
                             f"\n\nError de Truncamiento:\n"
                             f"|E_T| = ((b - a) · h⁴ / 80) · max|f⁴(ξ)|\n"
-                            f"|E_T| = (({b_simp38} - {a_simp38}) · {h_step}⁴ / 80) · {_f4_max:{fmt}}\n"
+                            f"|E_T| = (({b_simp38:{fmt}} - {a_simp38:{fmt}}) · {h_step:{fmt}}⁴ / 80) · {_f4_max:{fmt}}\n"
                             f"|E_T| = {err_trunc:{fmt}}"
                         )
                     st.code(bloque, language="text")
@@ -1537,7 +1537,7 @@ with col2:
                         st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
-                    st.code(f"h = (b - a) / n = ({b_trap} - {a_trap}) / {n_trap} = {h_step}", language="text")
+                    st.code(f"h = (b - a) / n = ({b_trap:{fmt}} - {a_trap:{fmt}}) / {n_trap} = {h_step:{fmt}}", language="text")
                     _x_tr = np.linspace(a_trap, b_trap, n_trap + 1)
                     _terms = []
                     _lines = "Nodos y evaluaciones:\n"
@@ -1552,7 +1552,7 @@ with col2:
                         _lines + f"\nSuma = {' + '.join(_terms)}\n"
                         f"Suma = {_suma_val:{fmt}}\n\n"
                         f"I = (h/2) · Suma\n"
-                        f"I = ({h_step}/2) · {_suma_val:{fmt}}\n"
+                        f"I = ({h_step:{fmt}}/2) · {_suma_val:{fmt}}\n"
                         f"I = {h_step/2:{fmt}} · {_suma_val:{fmt}}\n"
                         f"I = {integral:{fmt}}"
                     )
@@ -1561,7 +1561,7 @@ with col2:
                         bloque += (
                             f"\n\nError de Truncamiento:\n"
                             f"|E_T| = ((b - a) · h² / 12) · max|f''(ξ)|\n"
-                            f"|E_T| = (({b_trap} - {a_trap}) · {h_step}² / 12) · {_f2_max:{fmt}}\n"
+                            f"|E_T| = (({b_trap:{fmt}} - {a_trap:{fmt}}) · {h_step:{fmt}}² / 12) · {_f2_max:{fmt}}\n"
                             f"|E_T| = {err_trunc:{fmt}}"
                         )
                     st.code(bloque, language="text")
@@ -1636,7 +1636,7 @@ with col2:
                 st.dataframe(format_df(df_tabla), use_container_width=True)
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
-                    st.code(f"h = (b - a) / n = ({b_rect} - {a_rect}) / {n_rect} = {h_step}", language="text")
+                    st.code(f"h = (b - a) / n = ({b_rect:{fmt}} - {a_rect:{fmt}}) / {n_rect} = {h_step:{fmt}}", language="text")
                     _x_rc = np.linspace(a_rect, b_rect, n_rect + 1)
                     _x_mid_rc = (_x_rc[:-1] + _x_rc[1:]) / 2
                     _y_mid_rc = [evaluar_f(func_input, xi) for xi in _x_mid_rc]
@@ -1650,7 +1650,7 @@ with col2:
                         _lines + f"\nSuma = {' + '.join(_terms)}\n"
                         f"Suma = {_suma_val:{fmt}}\n\n"
                         f"I = h · Suma\n"
-                        f"I = {h_step} · {_suma_val:{fmt}}\n"
+                        f"I = {h_step:{fmt}} · {_suma_val:{fmt}}\n"
                         f"I = {integral:{fmt}}"
                     )
                     if h_step > 0:
@@ -1658,7 +1658,7 @@ with col2:
                         bloque += (
                             f"\n\nError de Truncamiento:\n"
                             f"|E_T| = ((b - a) · h² / 24) · max|f''(ξ)|\n"
-                            f"|E_T| = (({b_rect} - {a_rect}) · {h_step}² / 24) · {_f2_max:{fmt}}\n"
+                            f"|E_T| = (({b_rect:{fmt}} - {a_rect:{fmt}}) · {h_step:{fmt}}² / 24) · {_f2_max:{fmt}}\n"
                             f"|E_T| = {err_trunc:{fmt}}"
                         )
                     st.code(bloque, language="text")
@@ -1762,8 +1762,8 @@ with col2:
                 _f_mean = np.mean(y_r[~np.isnan(y_r)])
                 _n_valid_mc = int(np.sum(~np.isnan(y_r)))
                 bloque = (
-                    f"Area = b - a = {b_mc} - {a_mc} = {vol:{fmt}}\n"
-                    f"N = {n_mc} puntos aleatorios en [{a_mc}, {b_mc}]\n\n"
+                    f"Area = b - a = {b_mc:{fmt}} - {a_mc:{fmt}} = {vol:{fmt}}\n"
+                    f"N = {n_mc} puntos aleatorios en [{a_mc:{fmt}}, {b_mc:{fmt}}]\n\n"
                     f"f̄ = (1/N) · Σf(xᵢ) = {_f_mean:{fmt}}\n\n"
                     f"I = Area · f̄\n"
                     f"I = {vol:{fmt}} · {_f_mean:{fmt}}\n"
@@ -1779,7 +1779,7 @@ with col2:
                     bloque += (
                         f"\n\nIntegración Analítica (Exacta):\n"
                         f"∫ f(x) dx = {integral_sym_str}\n"
-                        f"Evaluando en límites [{a_mc}, {b_mc}]: {exact_val:{fmt}}\n"
+                        f"Evaluando en límites [{a_mc:{fmt}}, {b_mc:{fmt}}]: {exact_val:{fmt}}\n"
                         f"Error Verdadero = |{integral:{fmt}} - {exact_val:{fmt}}| = {abs(integral - exact_val):{fmt}}"
                     )
                 elif exact_val is not None:
@@ -1920,7 +1920,7 @@ with col2:
             with st.expander("📋 Desarrollo paso a paso", expanded=False):
                 _f_mean_d = np.mean(z_r[~np.isnan(z_r)])
                 bloque = (
-                    f"Area = (bx-ax)·(by-ay) = ({b_x_mc}-{a_x_mc})·({b_y_mc}-{a_y_mc}) = {area_xy:{fmt}}\n"
+                    f"Area = (bx-ax)·(by-ay) = ({b_x_mc:{fmt}}-{a_x_mc:{fmt}})·({b_y_mc:{fmt}}-{a_y_mc:{fmt}}) = {area_xy:{fmt}}\n"
                     f"N = {n_mc2} puntos aleatorios\n\n"
                     f"f̄ = (1/N) · Σf(xᵢ,yᵢ) = {_f_mean_d:{fmt}}\n\n"
                     f"I = Area · f̄\n"
@@ -1934,7 +1934,7 @@ with col2:
                     bloque += (
                         f"\n\nIntegración Analítica (Exacta):\n"
                         f"∬ f(x,y) dy dx = {integral_sym_str}\n"
-                        f"Evaluando en límites x:[{a_x_mc}, {b_x_mc}], y:[{a_y_mc}, {b_y_mc}]: {exact_val:{fmt}}\n"
+                        f"Evaluando en límites x:[{a_x_mc:{fmt}}, {b_x_mc:{fmt}}], y:[{a_y_mc:{fmt}}, {b_y_mc:{fmt}}]: {exact_val:{fmt}}\n"
                         f"Error Verdadero = |{integral:{fmt}} - {exact_val:{fmt}}| = {abs(integral - exact_val):{fmt}}"
                     )
                 elif exact_val is not None:
@@ -2108,18 +2108,18 @@ with col2:
                     _x, _y = rk_x0, rk_y0
                     for _i in range(rk_n):
                         st.markdown(f"### Paso {_i} → {_i+1}")
-                        st.markdown(f"**Datos:** $x_{{{_i}}} = {_x:{fmt}}$, $y_{{{_i}}} = {_y:{fmt}}$, $h = {rk_h}$")
+                        st.markdown(f"**Datos:** $x_{{{_i}}} = {_x:{fmt}}$, $y_{{{_i}}} = {_y:{fmt}}$, $h = {rk_h:{fmt}}$")
 
                         if "Euler" in rk_orden:
                             _fval = evaluar_edo(func_input, _x, _y)
                             if _fval is None:
-                                st.error(f"No se pudo evaluar f({_x}, {_y})")
+                                st.error(f"No se pudo evaluar f({_x:{fmt}}, {_y:{fmt}})")
                                 break
                             _y_next = _y + rk_h * _fval
                             bloque = (
                                 f"f(x_{_i}, y_{_i}) = f({_x:{fmt}}, {_y:{fmt}}) = {_fval:{fmt}}\n\n"
                                 f"y_{{{_i+1}}} = y_{_i} + h · f(x_{_i}, y_{_i})\n"
-                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h} · {_fval:{fmt}}\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h:{fmt}} · {_fval:{fmt}}\n"
                                 f"y_{{{_i+1}}} = {_y_next:{fmt}}"
                             )
                             if y_exacta is not None and _i+1 < len(y_exacta):
@@ -2147,11 +2147,11 @@ with col2:
                             bloque = (
                                 f"k₁ = f(x_{_i}, y_{_i}) = f({_x:{fmt}}, {_y:{fmt}}) = {_k1:{fmt}}\n\n"
                                 f"k₂ = f(x_{_i} + p₁·h, y_{_i} + p₁·h·k₁)\n"
-                                f"k₂ = f({_x:{fmt}} + {_p1}·{rk_h}, {_y:{fmt}} + {_p1}·{rk_h}·{_k1:{fmt}})\n"
+                                f"k₂ = f({_x:{fmt}} + {_p1:{fmt}}·{rk_h:{fmt}}, {_y:{fmt}} + {_p1:{fmt}}·{rk_h:{fmt}}·{_k1:{fmt}})\n"
                                 f"k₂ = f({_x_k2:{fmt}}, {_y_k2:{fmt}}) = {_k2:{fmt}}\n\n"
                                 f"y_{{{_i+1}}} = y_{_i} + h·(b₁·k₁ + b₂·k₂)\n"
-                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h}·({_b1}·{_k1:{fmt}} + {_b2}·{_k2:{fmt}})\n"
-                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h}·({_b1*_k1:{fmt}} + {_b2*_k2:{fmt}})\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h:{fmt}}·({_b1:{fmt}}·{_k1:{fmt}} + {_b2:{fmt}}·{_k2:{fmt}})\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h:{fmt}}·({_b1*_k1:{fmt}} + {_b2*_k2:{fmt}})\n"
                                 f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h * (_b1*_k1 + _b2*_k2):{fmt}}\n"
                                 f"y_{{{_i+1}}} = {_y_next:{fmt}}"
                             )
@@ -2183,20 +2183,20 @@ with col2:
                             bloque = (
                                 f"k₁ = f(x_{_i}, y_{_i}) = f({_x:{fmt}}, {_y:{fmt}}) = {_k1:{fmt}}\n\n"
                                 f"k₂ = f(x_{_i} + h/2, y_{_i} + h/2·k₁)\n"
-                                f"k₂ = f({_x:{fmt}} + {rk_h}/2, {_y:{fmt}} + {rk_h}/2·{_k1:{fmt}})\n"
+                                f"k₂ = f({_x:{fmt}} + {rk_h:{fmt}}/2, {_y:{fmt}} + {rk_h:{fmt}}/2·{_k1:{fmt}})\n"
                                 f"k₂ = f({_x_k2:{fmt}}, {_y_k2:{fmt}}) = {_k2:{fmt}}\n\n"
                                 f"k₃ = f(x_{_i} + h/2, y_{_i} + h/2·k₂)\n"
-                                f"k₃ = f({_x:{fmt}} + {rk_h}/2, {_y:{fmt}} + {rk_h}/2·{_k2:{fmt}})\n"
+                                f"k₃ = f({_x:{fmt}} + {rk_h:{fmt}}/2, {_y:{fmt}} + {rk_h:{fmt}}/2·{_k2:{fmt}})\n"
                                 f"k₃ = f({_x_k3:{fmt}}, {_y_k3:{fmt}}) = {_k3:{fmt}}\n\n"
                                 f"k₄ = f(x_{_i} + h, y_{_i} + h·k₃)\n"
-                                f"k₄ = f({_x:{fmt}} + {rk_h}, {_y:{fmt}} + {rk_h}·{_k3:{fmt}})\n"
+                                f"k₄ = f({_x:{fmt}} + {rk_h:{fmt}}, {_y:{fmt}} + {rk_h:{fmt}}·{_k3:{fmt}})\n"
                                 f"k₄ = f({_x_k4:{fmt}}, {_y_k4:{fmt}}) = {_k4:{fmt}}\n\n"
                                 f"φ = (1/6)·(k₁ + 2·k₂ + 2·k₃ + k₄)\n"
                                 f"φ = (1/6)·({_k1:{fmt}} + 2·{_k2:{fmt}} + 2·{_k3:{fmt}} + {_k4:{fmt}})\n"
                                 f"φ = (1/6)·({_k1 + 2*_k2 + 2*_k3 + _k4:{fmt}})\n"
                                 f"φ = {_phi:{fmt}}\n\n"
                                 f"y_{{{_i+1}}} = y_{_i} + h·φ\n"
-                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h}·{_phi:{fmt}}\n"
+                                f"y_{{{_i+1}}} = {_y:{fmt}} + {rk_h:{fmt}}·{_phi:{fmt}}\n"
                                 f"y_{{{_i+1}}} = {_y_next:{fmt}}"
                             )
                             if y_exacta is not None and _i+1 < len(y_exacta):
@@ -2315,14 +2315,14 @@ with col2:
                         
                         st.markdown(f"### Paso {_i} → {_i+1}")
                         bloque = (
-                            f"Datos: x_{_i} = {_x:{fmt}}, y1_{_i} = {_y1:{fmt}}, y2_{_i} = {_y2:{fmt}}, h = {rk_h}\n\n"
+                            f"Datos: x_{_i} = {_x:{fmt}}, y1_{_i} = {_y1:{fmt}}, y2_{_i} = {_y2:{fmt}}, h = {rk_h:{fmt}}\n\n"
                             f"--- Ecuación 1 ---\n"
                             f"k1⑴ = {_k1_1:{fmt}}\n"
                             f"k2⑴ = {_k2_1:{fmt}}\n"
                             f"k3⑴ = {_k3_1:{fmt}}\n"
                             f"k4⑴ = {_k4_1:{fmt}}\n"
                             f"y1_{{{_i+1}}} = y1_{_i} + (h/6)·(k1⑴ + 2·k2⑴ + 2·k3⑴ + k4⑴)\n"
-                            f"y1_{{{_i+1}}} = {_y1:{fmt}} + ({rk_h}/6)·({_k1_1:{fmt}} + 2·{_k2_1:{fmt}} + 2·{_k3_1:{fmt}} + {_k4_1:{fmt}})\n"
+                            f"y1_{{{_i+1}}} = {_y1:{fmt}} + ({rk_h:{fmt}}/6)·({_k1_1:{fmt}} + 2·{_k2_1:{fmt}} + 2·{_k3_1:{fmt}} + {_k4_1:{fmt}})\n"
                             f"y1_{{{_i+1}}} = {_r_next['y₁ᵢ']:{fmt}}\n\n"
                             f"--- Ecuación 2 ---\n"
                             f"k1⑵ = {_k1_2:{fmt}}\n"
@@ -2330,7 +2330,7 @@ with col2:
                             f"k3⑵ = {_k3_2:{fmt}}\n"
                             f"k4⑵ = {_k4_2:{fmt}}\n"
                             f"y2_{{{_i+1}}} = y2_{_i} + (h/6)·(k1⑵ + 2·k2⑵ + 2·k3⑵ + k4⑵)\n"
-                            f"y2_{{{_i+1}}} = {_y2:{fmt}} + ({rk_h}/6)·({_k1_2:{fmt}} + 2·{_k2_2:{fmt}} + 2·{_k3_2:{fmt}} + {_k4_2:{fmt}})\n"
+                            f"y2_{{{_i+1}}} = {_y2:{fmt}} + ({rk_h:{fmt}}/6)·({_k1_2:{fmt}} + 2·{_k2_2:{fmt}} + 2·{_k3_2:{fmt}} + {_k4_2:{fmt}})\n"
                             f"y2_{{{_i+1}}} = {_r_next['y₂ᵢ']:{fmt}}"
                         )
                         st.code(bloque, language="text")

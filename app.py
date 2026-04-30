@@ -835,6 +835,10 @@ mostrar_formulas = st.sidebar.checkbox("Visor Fórmulas (Ctrl+Shift+F)", value=F
 precision = st.sidebar.slider("Precisión Decimal", 1, 12, 6)
 fmt = f".{precision}f"
 
+def format_df(df_in):
+    return df_in.style.format(lambda x: f"{x:.{precision}f}" if isinstance(x, float) else x)
+
+
 metodo_sel = st.sidebar.selectbox("Selecciona Método",
     ["Bisección", "Newton-Raphson", "Punto Fijo y Aitken", "Interpolación Lagrange", "Diferencias Centrales", "Rectángulo Medio", "Trapecios", "Simpson 1/3", "Simpson 3/8", "Montecarlo", "Montecarlo Doble", "Runge-Kutta"])
 
@@ -1271,7 +1275,7 @@ with col2:
                             st.warning(f"El valor x = {_x_val_dc} no se encuentra en los puntos interiores calculados.")
                     except:
                         st.error("Valor de x a buscar inválido.")
-                st.table(df_filtrado)
+                st.table(format_df(df_filtrado))
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     _h_dc = x_in_num[1] - x_in_num[0]
@@ -1333,7 +1337,7 @@ with col2:
                 col_r1.metric("Integral ≈", f"{integral:{fmt}}")
                 col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
-                st.dataframe(df_tabla, use_container_width=True)
+                st.dataframe(format_df(df_tabla), use_container_width=True)
                 if indets:
                     for xi, val in indets:
                         st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
@@ -1430,7 +1434,7 @@ with col2:
                 col_r1.metric("Integral ≈", f"{integral:{fmt}}")
                 col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
-                st.dataframe(df_tabla, use_container_width=True)
+                st.dataframe(format_df(df_tabla), use_container_width=True)
                 if indets:
                     for xi, val in indets:
                         st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
@@ -1527,7 +1531,7 @@ with col2:
                 col_r1.metric("Integral ≈", f"{integral:{fmt}}")
                 col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
-                st.dataframe(df_tabla, use_container_width=True)
+                st.dataframe(format_df(df_tabla), use_container_width=True)
                 if indets:
                     for xi, val in indets:
                         st.warning(f"⚠️ Indeterminación detectada en x = {xi:{fmt}}. Se resolvió usando límite/L'Hôpital obteniendo: f(x) ≈ {val:{fmt}}")
@@ -1629,7 +1633,7 @@ with col2:
                 col_r1.metric("Integral ≈", f"{integral:{fmt}}")
                 col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
-                st.dataframe(df_tabla, use_container_width=True)
+                st.dataframe(format_df(df_tabla), use_container_width=True)
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     st.code(f"h = (b - a) / n = ({b_rect} - {a_rect}) / {n_rect} = {h_step}", language="text")
@@ -1752,7 +1756,7 @@ with col2:
             c4.metric("Error Estándar (EE)", formatear_error(err_est))
             c5.metric(f"IC {conf_mc}%", f"[{ic_low:{fmt}}, {ic_up:{fmt}}]")
             st.write(f"**Área/Volumen Región:** {vol:{fmt}}")
-            st.dataframe(df_tabla, use_container_width=True)
+            st.dataframe(format_df(df_tabla), use_container_width=True)
             # --- DESARROLLO PASO A PASO ---
             with st.expander("📋 Desarrollo paso a paso", expanded=False):
                 _f_mean = np.mean(y_r[~np.isnan(y_r)])
@@ -1911,7 +1915,7 @@ with col2:
             c4.metric("Error Estándar (EE)", formatear_error(err_est))
             c5.metric(f"IC {conf_mc2}%", f"[{ic_low:{fmt}}, {ic_up:{fmt}}]")
             st.write(f"**Área Integración:** {area_xy:{fmt}}")
-            st.dataframe(df_tabla, use_container_width=True)
+            st.dataframe(format_df(df_tabla), use_container_width=True)
             # --- DESARROLLO PASO A PASO ---
             with st.expander("📋 Desarrollo paso a paso", expanded=False):
                 _f_mean_d = np.mean(z_r[~np.isnan(z_r)])
@@ -2096,7 +2100,7 @@ with col2:
                     err_final = abs(ys_rk[-1] - y_exacta[-1])
                     col_r3.metric("Error Final |y - y_exact|", formatear_error(err_final))
 
-                st.dataframe(df_rk, use_container_width=True)
+                st.dataframe(format_df(df_rk), use_container_width=True)
 
                 # --- DESARROLLO PASO A PASO (REEMPLAZO TEXTUAL) ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
@@ -2298,7 +2302,7 @@ with col2:
                 col_r1.metric("y₁ final ≈", f"{y1s_sys[-1]:{fmt}}")
                 col_r2.metric("y₂ final ≈", f"{y2s_sys[-1]:{fmt}}")
                 col_r3.metric("x final", f"{xs_sys[-1]:{fmt}}")
-                st.dataframe(df_sys, use_container_width=True)
+                st.dataframe(format_df(df_sys), use_container_width=True)
 
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
@@ -2390,7 +2394,7 @@ with col2:
                 col_r2.metric("Iteraciones", len(df_pf))
                 col_r3.metric("Error Final (%)", formatear_error(err_pf) if err_pf is not None else "N/A")
 
-                st.dataframe(df_pf, use_container_width=True)
+                st.dataframe(format_df(df_pf), use_container_width=True)
 
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):

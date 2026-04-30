@@ -623,7 +623,7 @@ def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0, seed=
 
 def formatear_error(valor):
     if valor == 0:
-        return f"0.{"" .zfill(precision)}"
+        return "0." + "0" * precision
     if abs(valor) < 0.0001:
         s = f"{valor:.4e}"
         base, exp = s.split('e')

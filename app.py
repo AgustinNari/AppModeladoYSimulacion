@@ -264,10 +264,10 @@ def metodo_simpson_13(f_str, a, b, n, xi_punto=None):
         fk = float(y_pts[k])
         tabla.append({
             "N": k,
-            "Xₙ": round(float(x_pts[k]), 8),
-            "F(Xₙ)": round(fk, 8),
+            "Xₙ": round(float(x_pts[k]), precision),
+            "F(Xₙ)": round(fk, precision),
             "Coef.": coef,
-            "Coef. × F(Xₙ)": round(coef * fk, 8),
+            "Coef. × F(Xₙ)": round(coef * fk, precision),
         })
     return integral, error_trunc, h, pd.DataFrame(tabla), indets, y_pts_list
 
@@ -344,7 +344,7 @@ def metodo_simpson_38(f_str, a, b, n, a_str="", b_str="", xi_punto=None):
                     return f"{num}π/{D}"
         except:
             pass
-        return str(round(float(val_float), 8))
+        return str(round(float(val_float), precision))
 
     # Tabla por nodo
     tabla = []
@@ -359,9 +359,9 @@ def metodo_simpson_38(f_str, a, b, n, a_str="", b_str="", xi_punto=None):
         tabla.append({
             "N": k,
             "Xₙ": format_xn(x_pts[k], k),
-            "F(Xₙ)": round(fk, 8),
+            "F(Xₙ)": round(fk, precision),
             "Coef.": coef,
-            "Coef. × F(Xₙ)": round(coef * fk, 8),
+            "Coef. × F(Xₙ)": round(coef * fk, precision),
         })
     return integral, error_trunc, h, pd.DataFrame(tabla), indets, y_pts_list
 
@@ -412,10 +412,10 @@ def metodo_trapecios(f_str, a, b, n, xi_punto=None):
         fk = float(y_pts[k])
         tabla.append({
             "N": k,
-            "Xₙ": round(float(x_pts[k]), 8),
-            "F(Xₙ)": round(fk, 8),
+            "Xₙ": round(float(x_pts[k]), precision),
+            "F(Xₙ)": round(fk, precision),
             "Coef.": coef,
-            "Coef. × F(Xₙ)": round(coef * fk, 8),
+            "Coef. × F(Xₙ)": round(coef * fk, precision),
         })
     return integral, error_trunc, h, pd.DataFrame(tabla), indets, y_pts_list
 
@@ -452,12 +452,12 @@ def metodo_rectangulo_medio(f_str, a, b, n):
         fk = float(y_mid[k])
         tabla.append({
             "N": k+1,
-            "Xₙ_inf": round(float(x_pts[k]), 8),
-            "Xₙ_sup": round(float(x_pts[k+1]), 8),
-            "Xₘ (Pto. Medio)": round(float(x_mid[k]), 8),
-            "F(Xₘ)": round(fk, 8),
+            "Xₙ_inf": round(float(x_pts[k]), precision),
+            "Xₙ_sup": round(float(x_pts[k+1]), precision),
+            "Xₘ (Pto. Medio)": round(float(x_mid[k]), precision),
+            "F(Xₘ)": round(fk, precision),
             "Coef.": 1,
-            "Coef. × F(Xₘ)": round(1 * fk, 8),
+            "Coef. × F(Xₘ)": round(1 * fk, precision),
         })
     return integral, error_trunc, h, pd.DataFrame(tabla)
 
@@ -502,8 +502,8 @@ def metodo_montecarlo(f_str, a, b, n, conf_level=95.0, seed=None, antithetic=Fal
     for i in range(min(10, n)):
         tabla.append({
             "Punto i": i+1,
-            "x_i": round(x_rand[i], 6),
-            "f(x_i)": round(y_eval[i], 6) if not np.isnan(y_eval[i]) else "Indefinido",
+            "x_i": round(x_rand[i], precision),
+            "f(x_i)": round(y_eval[i], precision) if not np.isnan(y_eval[i]) else "Indefinido",
         })
     df_tabla = pd.DataFrame(tabla)
     
@@ -552,9 +552,9 @@ def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0, seed=
     for i in range(min(10, n)):
         tabla.append({
             "Punto i": i+1,
-            "x_i": round(x_rand[i], 6),
-            "y_i": round(y_rand[i], 6),
-            "f(x_i, y_i)": round(z_eval[i], 6) if not np.isnan(z_eval[i]) else "Indefinido",
+            "x_i": round(x_rand[i], precision),
+            "y_i": round(y_rand[i], precision),
+            "f(x_i, y_i)": round(z_eval[i], precision) if not np.isnan(z_eval[i]) else "Indefinido",
         })
     df_tabla = pd.DataFrame(tabla)
     
@@ -566,7 +566,7 @@ def metodo_montecarlo_doble(f_str, a_x, b_x, a_y, b_y, n, conf_level=95.0, seed=
 
 def formatear_error(valor):
     if valor == 0:
-        return "0.0000"
+        return f"0.{"" .zfill(precision)}"
     if abs(valor) < 0.0001:
         s = f"{valor:.4e}"
         base, exp = s.split('e')
@@ -574,7 +574,7 @@ def formatear_error(valor):
         superscripts = {'-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'}
         exp_sup = ''.join(superscripts.get(c, c) for c in str(exp_int))
         return f"{base} × 10{exp_sup}"
-    return f"{valor:.6f}"
+    return f"{valor:{fmt}}"
 
 
 def metodo_biseccion(f_str, a, b, tol, max_iter):
@@ -1069,7 +1069,7 @@ with col1:
             a_x_mc, b_x_mc, a_y_mc, b_y_mc = 0.0, 1.0, 0.0, 2.0
     elif metodo_sel == "Punto Fijo y Aitken":
         func_input = st.text_input("g(x):", key="fx_input", help="Función de iteración de punto fijo. Ej: cos(x), (x + 2/x)/2, sqrt(2 + x)")
-        x0_pf = st.number_input("x₀ (valor inicial)", value=1.0, format="%.6f")
+        x0_pf = st.number_input("x₀ (valor inicial)", value=1.0, format=f"%.{precision}f")
         tol_pf_str = st.text_input("Tolerancia (%)", value="1e-3")
         try:
             tol_pf = float(sp.sympify(tol_pf_str).evalf())
@@ -1330,8 +1330,8 @@ with col2:
 """)
                 st.subheader("Resultado")
                 col_r1, col_r2, col_r3 = st.columns(3)
-                col_r1.metric("Integral ≈", f"{integral:.8f}")
-                col_r2.metric("Paso h", f"{h_step:.6f}")
+                col_r1.metric("Integral ≈", f"{integral:{fmt}}")
+                col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
                 if indets:
@@ -1427,8 +1427,8 @@ with col2:
 """)
                 st.subheader("Resultado")
                 col_r1, col_r2, col_r3 = st.columns(3)
-                col_r1.metric("Integral ≈", f"{integral:.8f}")
-                col_r2.metric("Paso h", f"{h_step:.6f}")
+                col_r1.metric("Integral ≈", f"{integral:{fmt}}")
+                col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
                 if indets:
@@ -1524,8 +1524,8 @@ with col2:
 """)
                 st.subheader("Resultado")
                 col_r1, col_r2, col_r3 = st.columns(3)
-                col_r1.metric("Integral ≈", f"{integral:.8f}")
-                col_r2.metric("Paso h", f"{h_step:.6f}")
+                col_r1.metric("Integral ≈", f"{integral:{fmt}}")
+                col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
                 if indets:
@@ -1626,8 +1626,8 @@ with col2:
 """)
                 st.subheader("Resultado")
                 col_r1, col_r2, col_r3 = st.columns(3)
-                col_r1.metric("Integral ≈", f"{integral:.8f}")
-                col_r2.metric("Paso h", f"{h_step:.6f}")
+                col_r1.metric("Integral ≈", f"{integral:{fmt}}")
+                col_r2.metric("Paso h", f"{h_step:{fmt}}")
                 col_r3.metric("Error Trunc. |Eₜ|", formatear_error(err_trunc))
                 st.dataframe(df_tabla, use_container_width=True)
                 # --- DESARROLLO PASO A PASO ---
@@ -1745,7 +1745,7 @@ with col2:
             c1.metric("Integral ≈", f"{integral:{fmt}}")
             if exact_val is not None:
                 lbl = "Valor Exacto (Analítico)" if integral_sym_str else "Valor Exacto (Scipy)"
-                c2.metric(lbl, f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
+                c2.metric(lbl, f"{exact_val:{fmt}}", f"Err: {true_error_perc:{fmt}}%", delta_color="inverse")
             else:
                 c2.metric("Valor Exacto", "N/A")
             c3.metric("Desv. Estándar (S_desv)", f"{s_dev:{fmt}}")
@@ -1904,7 +1904,7 @@ with col2:
             c1.metric("Integral Acumulada ≈", f"{integral:{fmt}}")
             if exact_val is not None:
                 lbl = "Valor Exacto (Analítico)" if integral_sym_str else "Valor Exacto (Scipy)"
-                c2.metric(lbl, f"{exact_val:{fmt}}", f"Err: {true_error_perc:.4f}%", delta_color="inverse")
+                c2.metric(lbl, f"{exact_val:{fmt}}", f"Err: {true_error_perc:{fmt}}%", delta_color="inverse")
             else:
                 c2.metric("Valor Exacto", "N/A")
             c3.metric("Desv. Estándar (S_desv)", f"{s_dev:{fmt}}")
@@ -2502,7 +2502,7 @@ with col2:
             st.subheader("Resultado")
             df, estado, raiz, err = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in) if metodo_sel == "Bisección" else metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
             if df is not None:
-                st.success(f"Raíz: {raiz:.8f}")
+                st.success(f"Raíz: {raiz:{fmt}}")
                 st.dataframe(df)
 
                 # --- DESARROLLO PASO A PASO ---

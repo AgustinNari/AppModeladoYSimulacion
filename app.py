@@ -6,6 +6,7 @@ import re
 import sympy as sp
 import scipy.stats as st_stats
 import scipy.integrate as spi
+import math
 import streamlit.components.v1 as components
 
 # Configuración de la página
@@ -194,19 +195,75 @@ def calcular_lagrange_avanzado(x_strs, y_strs):
     poly_final = sp.simplify(sp.expand(polinomio_total))
     return poly_final, listado_L, x_exact, y_exact
 
+
+def calcular_cota_error_lagrange(func_expr_str, x_eval_float, x_nodes):
+    """Calcula la cota teórica del error de Lagrange en x_eval."""
+    try:
+        x_sym = sp.symbols('x')
+        expr = sp.sympify(func_expr_str.replace("^", "**").replace("sen", "sin").replace("ln", "log"))
+        orden = len(x_nodes)
+        derivada = sp.diff(expr, x_sym, orden)
+        deriv_fun = sp.lambdify(x_sym, derivada, modules=["numpy"])
+        x_min = float(np.min(x_nodes))
+        x_max = float(np.max(x_nodes))
+        xs = np.linspace(x_min, x_max, 800)
+        vals = deriv_fun(xs)
+        vals = np.asarray(vals, dtype=float)
+        if vals.size == 0 or np.any(np.isnan(vals)) or np.any(np.isinf(vals)):
+            return None
+        m_max = float(np.max(np.abs(vals)))
+        prod = 1.0
+        for xi in x_nodes:
+            prod *= (x_eval_float - float(xi))
+        cota = abs(prod) * m_max / math.factorial(orden)
+        return cota, m_max, orden, derivada
+    except Exception:
+        return None
+
 # --- LÓGICA DE DIFERENCIAS CENTRALES ---
 
 def metodo_diferencias_centrales(x_pts, y_pts):
-    if len(x_pts) < 3: return None
-    h = x_pts[1] - x_pts[0]
+    if len(x_pts) < 3:
+        return None
+
+    # Asegurar orden y preservar emparejamiento x-y
+    orden = np.argsort(x_pts)
+    x_pts = np.asarray(x_pts, dtype=float)[orden]
+    y_pts = np.asarray(y_pts, dtype=float)[orden]
+
+    # Verificar espaciado uniforme para mantener el esquema de diferencias centrales
+    h_vec = np.diff(x_pts)
+    h = float(np.mean(h_vec))
+    if not np.allclose(h_vec, h, rtol=1e-6, atol=1e-9):
+        # Si el espaciado no es uniforme, se sigue con el promedio para no romper el flujo.
+        pass
+
     derivadas = []
     for i in range(1, len(x_pts) - 1):
-        d1 = (y_pts[i+1] - y_pts[i-1]) / (2 * h)
-        d2 = (y_pts[i+1] - 2*y_pts[i] + y_pts[i-1]) / (h**2)
+        d1 = (y_pts[i + 1] - y_pts[i - 1]) / (2 * h)
+        d2 = (y_pts[i + 1] - 2 * y_pts[i] + y_pts[i - 1]) / (h ** 2)
         derivadas.append({
-            "Punto x": x_pts[i], "f'(x)": d1, "f''(x)": d2, "Error O(h^2)": h**2
+            "Punto x": x_pts[i],
+            "f'(x)": d1,
+            "f''(x)": d2,
+            "Error O(h^2)": h ** 2,
         })
     return pd.DataFrame(derivadas)
+
+
+def seleccionar_punto_diferencias_centrales(df_dc, x_objetivo, x_pts, y_pts):
+    """Devuelve la fila exacta si existe; si no, usa el punto interior más cercano."""
+    if df_dc is None or len(df_dc) == 0:
+        return df_dc, None, None
+
+    xs = df_dc["Punto x"].astype(float).to_numpy()
+    idx_exactos = np.where(np.isclose(xs, x_objetivo, rtol=1e-9, atol=1e-9))[0]
+    if len(idx_exactos) > 0:
+        idx = int(idx_exactos[0])
+        return df_dc.iloc[[idx]], float(xs[idx]), "exacto"
+
+    idx = int(np.argmin(np.abs(xs - x_objetivo)))
+    return df_dc.iloc[[idx]], float(xs[idx]), "mas_cercano"
 
 # --- INTEGRACIÓN: SIMPSON 1/3 ---
 
@@ -1248,6 +1305,20 @@ with col2:
                     err_local = abs(float(val_p.evalf()) - v_real)
                     st.metric("Error Local  |P(x) − f(x)|", f"{err_local:{fmt}}")
 
+                    cota_info = calcular_cota_error_lagrange(func_teorica, x_eval_float, x_in_num)
+                    if cota_info is not None:
+                        cota_err, m_max, orden_der, derivada = cota_info
+                        st.metric("Cota de error de Lagrange", f"{cota_err:{fmt}}")
+                        with st.expander("📌 Cálculo de la cota de error", expanded=False):
+                            st.code(
+                                f"E(x) = f^({orden_der})(ξ) / {orden_der}! · ∏(x - x_i)\n"
+                                f"|E(x)| ≤ M / {orden_der}! · |∏(x - x_i)|\n"
+                                f"M = max|f^({orden_der})(ξ)| ≈ {m_max:{fmt}}\n"
+                                f"∏(x - x_i) = " + " · ".join([f"({x_eval_float:{fmt}} - {float(xi):{fmt}})" for xi in x_in_num]) + f"\n"
+                                f"Cota = {cota_err:{fmt}}",
+                                language="text"
+                            )
+
             # Gráfico (solo si no hay variables b, c, etc en y)
             if all(sp.sympify(y).is_number for y in y_in_strs):
                 x_range = np.linspace(min(x_in_num)-1, max(x_in_num)+1, 150)
@@ -1297,22 +1368,30 @@ with col2:
             if df is not None:
                 df_filtrado = df
                 _x_val_dc = None
+                _x_sel_dc = None
+                _modo_sel_dc = None
                 if x_buscar_dc.strip() != "":
                     try:
                         _x_val_dc = float(sp.sympify(x_buscar_dc).evalf())
-                        df_filtrado = df[np.isclose(df["Punto x"].astype(float), _x_val_dc)]
-                        if df_filtrado.empty:
-                            st.warning(f"El valor x = {_x_val_dc} no se encuentra en los puntos interiores calculados.")
+                        df_filtrado, _x_sel_dc, _modo_sel_dc = seleccionar_punto_diferencias_centrales(
+                            df, _x_val_dc, x_in_num, y_in_num
+                        )
+                        if _modo_sel_dc == "mas_cercano":
+                            st.info(
+                                f"El valor x = {_x_val_dc:{fmt}} no estaba exactamente en los nodos interiores; se usó el punto interior más cercano x = {_x_sel_dc:{fmt}}."
+                            )
                     except:
                         st.error("Valor de x a buscar inválido.")
-                st.table(format_df(df_filtrado))
+                st.dataframe(format_df(df_filtrado), use_container_width=True)
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
                     _h_dc = x_in_num[1] - x_in_num[0]
                     st.code(f"h = x₁ - x₀ = {x_in_num[1]:{fmt}} - {x_in_num[0]:{fmt}} = {_h_dc:{fmt}}", language="text")
                     for _i_dc in range(1, len(x_in_num) - 1):
                         _xi = x_in_num[_i_dc]
-                        if _x_val_dc is not None and not np.isclose(_xi, _x_val_dc):
+                        if _x_val_dc is not None and _modo_sel_dc == "exacto" and not np.isclose(_xi, _x_val_dc):
+                            continue
+                        if _x_val_dc is not None and _modo_sel_dc == "mas_cercano" and not np.isclose(_xi, _x_sel_dc):
                             continue
                         _fi_m1 = y_in_num[_i_dc - 1]
                         _fi = y_in_num[_i_dc]
@@ -2395,21 +2474,38 @@ with col2:
             if mostrar_formulas:
                 st.subheader("Fórmulas")
                 st.latex(r"x_{n+1} = g(x_n)")
-                st.latex(r"\hat{x}_n = x_n - \frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}")
-                st.latex(r"\text{Error} = \left|\frac{\hat{x}_n - x_n}{\hat{x}_n}\right| \times 100\%")
+                if metodo_sel == "Punto Fijo y Aitken":
+                    st.latex(r"\hat{x}_n = x_n - \frac{(x_{n+1} - x_n)^2}{x_{n+2} - 2x_{n+1} + x_n}")
+                    st.latex(r"\text{Error} = \left|\frac{\hat{x}_n - x_n}{\hat{x}_n}\right| \times 100\%")
+                else:
+                    st.latex(r"\text{Error} = \left|\frac{x_{n+1} - x_n}{x_{n+1}}\right| \times 100\%")
                 with st.expander("📖 Notación"):
-                    st.markdown("""
+                    if metodo_sel == "Punto Fijo y Aitken":
+                        st.markdown("""
 | Símbolo | Significado |
 |---|---|
 | $g(x)$ | Función de iteración de punto fijo |
 | $x_n$ | Aproximación actual en la iteración $n$ |
 | $x_{n+1}$ | Siguiente valor: $g(x_n)$ |
-| $\\hat{x}_n$ | Valor acelerado de Aitken (Δ²) |
-| Error (%) | Error relativo porcentual basado en $\\hat{x}_n$ |
+| $x_{n+2}$ | Siguiente iteración adicional de $g$ |
+| $\hat{x}_n$ | Valor acelerado de Aitken (Δ²) |
+| Error (%) | Error relativo porcentual basado en $\hat{x}_n$ |
+""")
+                    else:
+                        st.markdown("""
+| Símbolo | Significado |
+|---|---|
+| $g(x)$ | Función de iteración de punto fijo |
+| $x_n$ | Aproximación actual en la iteración $n$ |
+| $x_{n+1}$ | Siguiente valor: $g(x_n)$ |
+| Error (%) | Error relativo porcentual basado en $x_{n+1}$ |
 """)
 
             st.subheader("Resultado")
-            df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo_aitken(func_input, x0_pf, tol_pf, iter_pf)
+            if metodo_sel == "Punto Fijo":
+                df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo(func_input, x0_pf, tol_pf, iter_pf)
+            else:
+                df_pf, estado_pf, raiz_pf, err_pf = metodo_punto_fijo_aitken(func_input, x0_pf, tol_pf, iter_pf)
 
             if df_pf is not None and len(df_pf) > 0:
                 if estado_pf == "convergencia":
@@ -2428,63 +2524,85 @@ with col2:
 
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
-                    _xn_pf = x0_pf
-                    for _i_pf in range(len(df_pf)):
-                        _row = df_pf.iloc[_i_pf]
-                        _xn = _row["Xn"]
-                        _xn1 = _row["Xn+1"]
-                        _xn2 = _row["Xn+2"]
-                        _xn_star = _row["Xn*"]
-                        _err = _row["Error %"]
-                        bloque = (
-                            f"--- Iteración n={int(_row['n'])} ---\n"
-                            f"Xn = {_xn}\n\n"
-                            f"Xn+1 = g(Xn) = g({_xn}) = {_xn1}\n"
-                            f"Xn+2 = g(Xn+1) = g({_xn1}) = {_xn2}\n\n"
-                        )
-                        if _xn_star != "":
-                            _denom = _xn2 - 2*_xn1 + _xn
-                            bloque += (
-                                f"Xn* = Xn - (Xn+1 - Xn)² / (Xn+2 - 2·Xn+1 + Xn)\n"
-                                f"Xn* = {_xn} - ({_xn1} - {_xn})² / ({_xn2} - 2·{_xn1} + {_xn})\n"
-                                f"Xn* = {_xn} - {(_xn1 - _xn)**2:{fmt}} / {_denom:{fmt}}\n"
-                                f"Xn* = {_xn_star:{fmt}}\n\n"
-                                f"Error = |Xn* - Xn| / |Xn*| × 100%\n"
-                                f"Error = |{_xn_star:{fmt}} - {_xn}| / |{_xn_star:{fmt}}| × 100%\n"
-                                f"Error = {_err:{fmt}}%"
+                    if metodo_sel == "Punto Fijo":
+                        for _i_pf in range(len(df_pf)):
+                            _row = df_pf.iloc[_i_pf]
+                            _xn = _row["Xn"]
+                            _xn1 = _row["Xn+1"]
+                            _err = _row["Error %"]
+                            bloque = (
+                                f"--- Iteración n={int(_row['n'])} ---\n"
+                                f"Xn = {_xn}\n\n"
+                                f"Xn+1 = g(Xn) = g({_xn}) = {_xn1}\n"
                             )
-                        else:
-                            bloque += "Xn* = indefinido (denominador ≈ 0)"
-                        st.code(bloque, language="text")
+                            if _err != "" and _i_pf > 0:
+                                bloque += (
+                                    f"\nError = |Xn+1 - Xn| / |Xn+1| × 100%\n"
+                                    f"Error = |{_xn1:{fmt}} - {_xn:{fmt}}| / |{_xn1:{fmt}}| × 100%\n"
+                                    f"Error = {_err:{fmt}}%"
+                                )
+                            st.code(bloque, language="text")
+                    else:
+                        for _i_pf in range(len(df_pf)):
+                            _row = df_pf.iloc[_i_pf]
+                            _xn = _row["Xn"]
+                            _xn1 = _row["Xn+1"]
+                            _xn2 = _row["Xn+2"]
+                            _xn_star = _row["Xn*"]
+                            _err = _row["Error %"]
+                            bloque = (
+                                f"--- Iteración n={int(_row['n'])} ---\n"
+                                f"Xn = {_xn}\n\n"
+                                f"Xn+1 = g(Xn) = g({_xn}) = {_xn1}\n"
+                                f"Xn+2 = g(Xn+1) = g({_xn1}) = {_xn2}\n\n"
+                            )
+                            if _xn_star != "":
+                                _denom = _xn2 - 2*_xn1 + _xn
+                                bloque += (
+                                    f"Xn* = Xn - (Xn+1 - Xn)² / (Xn+2 - 2·Xn+1 + Xn)\n"
+                                    f"Xn* = {_xn} - ({_xn1} - {_xn})² / ({_xn2} - 2·{_xn1} + {_xn})\n"
+                                    f"Xn* = {_xn} - {(_xn1 - _xn)**2:{fmt}} / {_denom:{fmt}}\n"
+                                    f"Xn* = {_xn_star:{fmt}}\n\n"
+                                    f"Error = |Xn* - Xn| / |Xn*| × 100%\n"
+                                    f"Error = |{_xn_star:{fmt}} - {_xn:{fmt}}| / |{_xn_star:{fmt}}| × 100%\n"
+                                    f"Error = {_err:{fmt}}%"
+                                )
+                            else:
+                                bloque += "Xn* = indefinido (denominador ≈ 0)"
+                            st.code(bloque, language="text")
 
-                # --- GRÁFICO: convergencia punto fijo vs Aitken ---
-                xn_vals = df_pf["Xn"].tolist()
-                xhat_vals = [v if v != "" else None for v in df_pf["Xn*"].tolist()]
+                # --- GRÁFICO ---
                 n_vals = df_pf["n"].tolist()
-
+                xn_vals = df_pf["Xn"].tolist()
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
                     x=n_vals, y=xn_vals, mode='lines+markers',
-                    name='xₙ (Punto Fijo)', line=dict(color='#00cfcc', width=2),
+                    name='xₙ', line=dict(color='#00cfcc', width=2),
                     marker=dict(size=6)
                 ))
-
-                # Solo trazar x_hat donde existe
-                xhat_n = [n for n, v in zip(n_vals, xhat_vals) if v is not None]
-                xhat_y = [v for v in xhat_vals if v is not None]
-                if xhat_y:
-                    fig.add_trace(go.Scatter(
-                        x=xhat_n, y=xhat_y, mode='lines+markers',
-                        name='x̂ₙ (Aitken)', line=dict(color='#e03ce6', width=2, dash='dash'),
-                        marker=dict(size=7, symbol='diamond')
-                    ))
-
-                fig.update_layout(
-                    template="plotly_dark",
-                    title=f"Convergencia — Punto Fijo vs Aitken (g(x) = {func_input})",
-                    xaxis_title="Iteración n",
-                    yaxis_title="Valor"
-                )
+                if metodo_sel == "Punto Fijo y Aitken":
+                    xhat_vals = [v if v != "" else None for v in df_pf["Xn*"].tolist()]
+                    xhat_n = [n for n, v in zip(n_vals, xhat_vals) if v is not None]
+                    xhat_y = [v for v in xhat_vals if v is not None]
+                    if xhat_y:
+                        fig.add_trace(go.Scatter(
+                            x=xhat_n, y=xhat_y, mode='lines+markers',
+                            name='x̂ₙ (Aitken)', line=dict(color='#e03ce6', width=2, dash='dash'),
+                            marker=dict(size=7, symbol='diamond')
+                        ))
+                    fig.update_layout(
+                        template="plotly_dark",
+                        title=f"Convergencia — Punto Fijo vs Aitken (g(x) = {func_input})",
+                        xaxis_title="Iteración n",
+                        yaxis_title="Valor"
+                    )
+                else:
+                    fig.update_layout(
+                        template="plotly_dark",
+                        title=f"Convergencia — Punto Fijo (g(x) = {func_input})",
+                        xaxis_title="Iteración n",
+                        yaxis_title="Valor"
+                    )
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.error("No se pudo calcular. Verificá la función g(x) y el valor inicial.")
@@ -2537,7 +2655,7 @@ with col2:
             df, estado, raiz, err = metodo_biseccion(func_input, a_in, b_in, tol_in, iter_in) if metodo_sel == "Bisección" else metodo_newton_raphson(func_input, x0_in, tol_in, iter_in)
             if df is not None:
                 st.success(f"Raíz: {raiz:{fmt}}")
-                st.dataframe(df)
+                st.dataframe(format_df(df), use_container_width=True)
 
                 # --- DESARROLLO PASO A PASO ---
                 with st.expander("📋 Desarrollo paso a paso", expanded=False):
